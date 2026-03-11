@@ -147,6 +147,7 @@
       editable={true}
       allowSorting={true}
       showFilter={true}
+      animatedCellSelection={true}
       onclick={handleClick}
       onselectionchanged={handleSelectionChanged}
     />
