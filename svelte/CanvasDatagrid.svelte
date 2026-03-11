@@ -42,20 +42,12 @@
     - getGrid(): Returns the raw canvas-datagrid instance
 -->
 <script module>
-  // Re-export for convenient access
   export { default as canvasDatagrid } from '../lib/main.js';
 </script>
 
 <script>
-  import { onMount, tick } from 'svelte';
+  import { onMount } from 'svelte';
   import canvasDatagrid from '../lib/main.js';
-
-  // Known top-level keys that map to grid properties (not attributes)
-  const TOP_LEVEL_KEYS = new Set([
-    'style', 'formatters', 'sorters', 'filters',
-    'treeGridAttributes', 'cellGridAttributes', 'fillCellCallback',
-    'data', 'schema',
-  ]);
 
   let {
     data = $bindable([]),
@@ -71,18 +63,13 @@
   } = $props();
 
   let container;
-  let grid;
+  let grid = $state(null);
   let eventCleanups = [];
 
-  /**
-   * Returns the raw canvas-datagrid instance for direct API access.
-   * Use this as an escape hatch when you need methods not exposed as props.
-   */
   export function getGrid() {
     return grid;
   }
 
-  // Separate event handlers (on*) from config attributes
   function partitionProps(props) {
     const events = {};
     const attrs = {};
@@ -96,63 +83,35 @@
     return { events, attrs };
   }
 
+  function buildConstructorArgs(attrs) {
+    const args = {
+      parentNode: container,
+      data: data || [],
+    };
+    if (schema) args.schema = schema;
+    if (gridStyle && typeof gridStyle === 'object') args.style = gridStyle;
+    if (formatters) args.formatters = formatters;
+    if (sorters) args.sorters = sorters;
+    if (filters) args.filters = filters;
+    if (treeGridAttributes) args.treeGridAttributes = treeGridAttributes;
+    if (cellGridAttributes) args.cellGridAttributes = cellGridAttributes;
+    if (fillCellCallback) args.fillCellCallback = fillCellCallback;
+    Object.assign(args, attrs);
+    return args;
+  }
+
   onMount(() => {
     const { events, attrs } = partitionProps(restProps);
 
-    // Create grid instance
-    grid = canvasDatagrid({
-      parentNode: container,
-    });
+    grid = canvasDatagrid(buildConstructorArgs(attrs));
 
-    // Apply styles
-    if (gridStyle && typeof gridStyle === 'object') {
-      for (const [k, v] of Object.entries(gridStyle)) {
-        grid.style[k] = v;
-      }
-    }
+    grid.style.height = '100%';
+    grid.style.width = '100%';
 
-    // Apply object-type props
-    if (formatters) {
-      for (const [k, v] of Object.entries(formatters)) {
-        grid.formatters[k] = v;
-      }
-    }
-    if (sorters) {
-      for (const [k, v] of Object.entries(sorters)) {
-        grid.sorters[k] = v;
-      }
-    }
-    if (filters) {
-      for (const [k, v] of Object.entries(filters)) {
-        grid.filters[k] = v;
-      }
-    }
-    if (treeGridAttributes) grid.treeGridAttributes = treeGridAttributes;
-    if (cellGridAttributes) grid.cellGridAttributes = cellGridAttributes;
-    if (fillCellCallback) grid.fillCellCallback = fillCellCallback;
-
-    // Apply config attributes
-    for (const [k, v] of Object.entries(attrs)) {
-      grid.attributes[k] = v;
-    }
-
-    // Apply schema before data so columns are defined
-    if (schema) {
-      grid.schema = schema;
-    }
-
-    // Apply data
-    grid.data = data || [];
-
-    // Wire up event listeners
     for (const [eventName, handler] of Object.entries(events)) {
       grid.addEventListener(eventName, handler);
       eventCleanups.push(() => grid.removeEventListener(eventName, handler));
     }
-
-    // Make grid fill container
-    grid.style.height = '100%';
-    grid.style.width = '100%';
 
     return () => {
       eventCleanups.forEach((fn) => fn());
@@ -163,21 +122,18 @@
     };
   });
 
-  // React to data changes
   $effect(() => {
     if (grid && data) {
       grid.data = data;
     }
   });
 
-  // React to schema changes
   $effect(() => {
     if (grid && schema) {
       grid.schema = schema;
     }
   });
 
-  // React to style changes
   $effect(() => {
     if (grid && gridStyle && typeof gridStyle === 'object') {
       for (const [k, v] of Object.entries(gridStyle)) {
@@ -186,7 +142,6 @@
     }
   });
 
-  // React to config attribute changes
   $effect(() => {
     if (!grid) return;
     const { attrs } = partitionProps(restProps);
@@ -195,16 +150,11 @@
     }
   });
 
-  // React to event handler changes - rewire listeners
   $effect(() => {
     if (!grid) return;
     const { events } = partitionProps(restProps);
-
-    // Clean up old listeners
     eventCleanups.forEach((fn) => fn());
     eventCleanups = [];
-
-    // Wire new listeners
     for (const [eventName, handler] of Object.entries(events)) {
       grid.addEventListener(eventName, handler);
       eventCleanups.push(() => grid.removeEventListener(eventName, handler));
