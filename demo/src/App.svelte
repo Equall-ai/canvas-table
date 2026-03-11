@@ -1,14 +1,10 @@
 <script>
-  import { onMount } from 'svelte';
-  import canvasDatagrid from 'canvas-datagrid';
+  import CanvasDatagrid from 'canvas-datagrid/svelte';
 
-  let gridContainer;
-  let grid;
+  let gridComponent;
   let rowCount = $state(500);
   let columnCount = $state(10);
-  let selectedTheme = $state('default');
-
-  const themes = ['default'];
+  let clickInfo = $state('');
 
   const sampleColumns = [
     'ID', 'Name', 'Email', 'Age', 'City', 'Country',
@@ -53,69 +49,73 @@
     return data;
   }
 
+  let data = $state(generateData(rowCount, columnCount));
+
   function refreshGrid() {
-    if (grid) {
-      grid.data = generateData(rowCount, columnCount);
-    }
+    data = generateData(rowCount, columnCount);
   }
 
   function addRow() {
-    if (grid) {
-      const newId = grid.data.length + 1;
-      grid.data.push({
-        ID: newId,
-        Name: `New Person ${newId}`,
-        Email: `new${newId}@example.com`,
-        Age: 25,
-        City: 'New York',
-        Country: 'USA',
-        Phone: '+1-555-0000',
-        Company: 'New Co',
-        Role: 'Engineer',
-        Salary: 75000,
-      });
-      grid.draw();
-    }
+    const newId = data.length + 1;
+    data = [...data, {
+      ID: newId,
+      Name: `New Person ${newId}`,
+      Email: `new${newId}@example.com`,
+      Age: 25,
+      City: 'New York',
+      Country: 'USA',
+      Phone: '+1-555-0000',
+      Company: 'New Co',
+      Role: 'Engineer',
+      Salary: 75000,
+    }];
   }
 
   function deleteSelectedRows() {
+    const grid = gridComponent?.getGrid();
     if (grid && grid.selectedRows) {
       const selectedIndexes = Object.keys(grid.selectedRows)
         .map(Number)
         .sort((a, b) => b - a);
+      const newData = [...data];
       for (const idx of selectedIndexes) {
-        grid.data.splice(idx, 1);
+        newData.splice(idx, 1);
       }
-      grid.draw();
+      data = newData;
     }
   }
 
   function fitColumns() {
+    const grid = gridComponent?.getGrid();
     if (grid) {
       grid.fitColumnToValues('all');
     }
   }
 
-  onMount(() => {
-    grid = canvasDatagrid({
-      parentNode: gridContainer,
-      data: generateData(rowCount, columnCount),
-    });
+  function handleClick(e) {
+    const cell = e.cell;
+    if (cell) {
+      clickInfo = `Clicked: row ${cell.rowIndex}, col "${cell.header?.name || cell.columnIndex}"`;
+    }
+  }
 
-    grid.style.height = '100%';
-    grid.style.width = '100%';
-
-    return () => {
-      if (grid && grid.dispose) {
-        grid.dispose();
+  function handleSelectionChanged(e) {
+    const grid = gridComponent?.getGrid();
+    if (grid && grid.selectedRows) {
+      const count = Object.keys(grid.selectedRows).length;
+      if (count > 0) {
+        clickInfo = `${count} row(s) selected`;
       }
-    };
-  });
+    }
+  }
 </script>
 
 <div class="demo-layout">
   <header>
-    <h1>canvas-datagrid Demo</h1>
+    <h1>canvas-datagrid Svelte Component Demo</h1>
+    {#if clickInfo}
+      <span class="click-info">{clickInfo}</span>
+    {/if}
   </header>
 
   <div class="controls">
@@ -140,7 +140,17 @@
     </fieldset>
   </div>
 
-  <div class="grid-container" bind:this={gridContainer}></div>
+  <div class="grid-container">
+    <CanvasDatagrid
+      bind:this={gridComponent}
+      {data}
+      editable={true}
+      allowSorting={true}
+      showFilter={true}
+      onclick={handleClick}
+      onselectionchanged={handleSelectionChanged}
+    />
+  </div>
 </div>
 
 <style>
@@ -160,11 +170,19 @@
     padding: 0.5rem 1rem;
     background: #1a1a2e;
     color: white;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
   }
 
   header h1 {
     margin: 0;
     font-size: 1.25rem;
+  }
+
+  .click-info {
+    font-size: 0.85rem;
+    opacity: 0.8;
   }
 
   .controls {
@@ -205,7 +223,6 @@
     border: 1px solid #ccc;
     border-radius: 3px;
   }
-
 
   button {
     padding: 0.35rem 0.75rem;

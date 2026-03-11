@@ -5,6 +5,7 @@ export default defineConfig({
   plugins: [svelte()],
   resolve: {
     alias: {
+      'canvas-datagrid/svelte': '../svelte/index.js',
       'canvas-datagrid': '../lib/main.js',
     },
   },
