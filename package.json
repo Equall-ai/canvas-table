@@ -22,6 +22,7 @@
   "files": [
     "dist/*",
     "lib/*",
+    "svelte/*",
     "src/",
     "LICENSE",
     "README.md",
@@ -110,6 +111,11 @@
       "import": "./dist/canvas-datagrid.module.js",
       "require": "./dist/canvas-datagrid.js",
       "default": "./dist/canvas-datagrid.js"
+    },
+    "./svelte": {
+      "svelte": "./svelte/index.js",
+      "import": "./svelte/index.js",
+      "default": "./svelte/index.js"
     },
     "./package.json": "./package.json"
   }
