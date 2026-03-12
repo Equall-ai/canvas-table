@@ -80,6 +80,8 @@
   let eventCleanups = [];
   let rendererCleanups = [];
   let renderedCells = $state([]);
+  let overlayClipTop = $state(0);
+  let overlayClipLeft = $state(0);
 
   export function getGrid() {
     return grid;
@@ -141,6 +143,21 @@
       return;
     }
     const scale = grid.scale || 1;
+    let headerBottom = 0;
+    let rowHeaderRight = 0;
+    for (let i = 0; i < cells.length; i++) {
+      const cell = cells[i];
+      if (cell.isColumnHeader || cell.isCorner) {
+        const bottom = (cell.y + cell.height) / scale;
+        if (bottom > headerBottom) headerBottom = bottom;
+      }
+      if (cell.isRowHeader || cell.isCorner) {
+        const right = (cell.x + cell.width) / scale;
+        if (right > rowHeaderRight) rowHeaderRight = right;
+      }
+    }
+    overlayClipTop = headerBottom;
+    overlayClipLeft = rowHeaderRight;
     const newCells = [];
     for (let i = 0; i < cells.length; i++) {
       const cell = cells[i];
@@ -262,7 +279,7 @@
 
 <div bind:this={container} class="canvas-datagrid-container">
   {#if renderedCells.length > 0}
-    <div class="cdg-renderer-overlay">
+    <div class="cdg-renderer-overlay" style="clip-path:inset({overlayClipTop}px 0 0 {overlayClipLeft}px);">
       {#each renderedCells as cell (cell.key)}
         <div
           class="cdg-renderer-cell"
