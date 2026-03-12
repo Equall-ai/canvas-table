@@ -26,6 +26,16 @@
       onselectionchanged={(e) => console.log('selection', e)}
     />
 
+    <!-- Column renderers: overlay Svelte snippets on specific columns -->
+    {#snippet statusRenderer(cell)}
+      <select value={cell.value} onchange={(e) => updateStatus(cell, e)}>
+        <option>Active</option>
+        <option>Inactive</option>
+      </select>
+    {/snippet}
+
+    <CanvasDatagrid {data} columnRenderers={{ Status: statusRenderer }} />
+
     <!-- Escape-hatch access to raw grid instance -->
     <button onclick={() => grid.getGrid().fitColumnToValues('all')}>
       Fit Columns
@@ -35,6 +45,8 @@
     - data: Array of row objects
     - schema: Array of column definitions (name, type, width, etc.)
     - style: Object of grid style overrides (see lib/defaults.js styles)
+    - columnRenderers: Object mapping column names to Svelte snippets
+      Each snippet receives { value, row, rowIndex, columnIndex, colName }
     - Any canvas-datagrid attribute (editable, allowSorting, showFilter, etc.)
     - Any "on*" prop is forwarded as a grid event listener
 
@@ -46,13 +58,14 @@
 </script>
 
 <script>
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import canvasDatagrid from '../lib/main.js';
 
   let {
     data = $bindable([]),
     schema = $bindable(undefined),
     style: gridStyle = {},
+    columnRenderers = {},
     formatters = undefined,
     sorters = undefined,
     filters = undefined,
@@ -65,6 +78,8 @@
   let container;
   let grid = $state(null);
   let eventCleanups = [];
+  let rendererCleanups = [];
+  let renderedCells = $state([]);
 
   export function getGrid() {
     return grid;
@@ -100,6 +115,60 @@
     return args;
   }
 
+  function hasRenderers() {
+    return columnRenderers && Object.keys(columnRenderers).length > 0;
+  }
+
+  function handleRenderText(e) {
+    if (!hasRenderers()) return;
+    const cell = e.cell;
+    if (cell && !cell.isHeader && !cell.isRowHeader && !cell.isCorner) {
+      const colName = cell.header?.name;
+      if (colName && columnRenderers[colName]) {
+        e.preventDefault();
+      }
+    }
+  }
+
+  function updateRendererOverlays() {
+    if (!grid || !hasRenderers()) {
+      renderedCells = [];
+      return;
+    }
+    const cells = grid.visibleCells;
+    if (!cells) {
+      renderedCells = [];
+      return;
+    }
+    const scale = grid.scale || 1;
+    const newCells = [];
+    for (let i = 0; i < cells.length; i++) {
+      const cell = cells[i];
+      if (cell.isHeader || cell.isRowHeader || cell.isCorner) continue;
+      const colName = cell.header?.name;
+      if (colName && columnRenderers[colName]) {
+        newCells.push({
+          key: cell.rowIndex + ':' + cell.columnIndex,
+          colName,
+          value: cell.value,
+          formattedValue: cell.formattedValue,
+          row: cell.data,
+          rowIndex: cell.rowIndex,
+          columnIndex: cell.columnIndex,
+          left: cell.x / scale,
+          top: cell.y / scale,
+          width: cell.width / scale,
+          height: cell.height / scale,
+        });
+      }
+    }
+    renderedCells = newCells;
+  }
+
+  function handleAfterDraw() {
+    updateRendererOverlays();
+  }
+
   onMount(() => {
     const { events, attrs } = partitionProps(restProps);
 
@@ -113,9 +182,21 @@
       eventCleanups.push(() => grid.removeEventListener(eventName, handler));
     }
 
+    if (hasRenderers()) {
+      grid.addEventListener('rendertext', handleRenderText);
+      grid.addEventListener('afterdraw', handleAfterDraw);
+      rendererCleanups.push(
+        () => grid.removeEventListener('rendertext', handleRenderText),
+        () => grid.removeEventListener('afterdraw', handleAfterDraw),
+      );
+    }
+
     return () => {
       eventCleanups.forEach((fn) => fn());
       eventCleanups = [];
+      rendererCleanups.forEach((fn) => fn());
+      rendererCleanups = [];
+      renderedCells = [];
       if (grid && grid.dispose) {
         grid.dispose();
       }
@@ -160,13 +241,64 @@
       eventCleanups.push(() => grid.removeEventListener(eventName, handler));
     }
   });
+
+  $effect(() => {
+    if (!grid) return;
+    rendererCleanups.forEach((fn) => fn());
+    rendererCleanups = [];
+    if (hasRenderers()) {
+      grid.addEventListener('rendertext', handleRenderText);
+      grid.addEventListener('afterdraw', handleAfterDraw);
+      rendererCleanups.push(
+        () => grid.removeEventListener('rendertext', handleRenderText),
+        () => grid.removeEventListener('afterdraw', handleAfterDraw),
+      );
+      updateRendererOverlays();
+    } else {
+      renderedCells = [];
+    }
+  });
 </script>
 
-<div bind:this={container} class="canvas-datagrid-container"></div>
+<div bind:this={container} class="canvas-datagrid-container">
+  {#if renderedCells.length > 0}
+    <div class="cdg-renderer-overlay">
+      {#each renderedCells as cell (cell.key)}
+        <div
+          class="cdg-renderer-cell"
+          style="left:{cell.left}px;top:{cell.top}px;width:{cell.width}px;height:{cell.height}px;"
+        >
+          {@render columnRenderers[cell.colName](cell)}
+        </div>
+      {/each}
+    </div>
+  {/if}
+</div>
 
 <style>
   .canvas-datagrid-container {
     width: 100%;
     height: 100%;
+    position: relative;
+  }
+
+  .cdg-renderer-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+    overflow: hidden;
+  }
+
+  .cdg-renderer-cell {
+    position: absolute;
+    overflow: hidden;
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
   }
 </style>

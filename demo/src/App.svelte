@@ -19,6 +19,24 @@
   const departments = ['Engineering', 'Design', 'Marketing', 'Sales', 'HR', 'Finance', 'Operations', 'Legal'];
   const statuses = ['Active', 'On Leave', 'Terminated', 'Contract'];
 
+  const statusColors = {
+    'Active': { bg: '#dcfce7', text: '#166534', border: '#bbf7d0' },
+    'On Leave': { bg: '#fef9c3', text: '#854d0e', border: '#fef08a' },
+    'Terminated': { bg: '#fecaca', text: '#991b1b', border: '#fca5a5' },
+    'Contract': { bg: '#dbeafe', text: '#1e40af', border: '#bfdbfe' },
+  };
+
+  const roleColors = {
+    'Engineer': '#8b5cf6',
+    'Designer': '#ec4899',
+    'Manager': '#f59e0b',
+    'Analyst': '#06b6d4',
+    'Director': '#10b981',
+    'VP': '#ef4444',
+    'Intern': '#6b7280',
+    'Lead': '#3b82f6',
+  };
+
   function generateData(rows, cols) {
     const data = [];
     const colCount = Math.min(cols, sampleColumns.length);
@@ -108,7 +126,36 @@
       }
     }
   }
+
+  function updateStatus(cell, e) {
+    const newValue = e.target.value;
+    data[cell.rowIndex].Status = newValue;
+    data = [...data];
+  }
+
+  function updateRole(cell, e) {
+    const newValue = e.target.value;
+    data[cell.rowIndex].Role = newValue;
+    data = [...data];
+  }
 </script>
+
+{#snippet statusRenderer(cell)}
+  <div class="status-pill" style="background:{statusColors[cell.value]?.bg || '#f3f4f6'};color:{statusColors[cell.value]?.text || '#374151'};border-color:{statusColors[cell.value]?.border || '#d1d5db'};">
+    <select value={cell.value} onchange={(e) => updateStatus(cell, e)}>
+      {#each statuses as s}
+        <option value={s} selected={s === cell.value}>{s}</option>
+      {/each}
+    </select>
+  </div>
+{/snippet}
+
+{#snippet roleRenderer(cell)}
+  <div class="role-badge" style="color:{roleColors[cell.value] || '#6b7280'};">
+    <span class="role-dot" style="background:{roleColors[cell.value] || '#6b7280'};"></span>
+    {cell.value}
+  </div>
+{/snippet}
 
 <div class="demo-layout">
   <header>
@@ -148,6 +195,7 @@
       allowSorting={true}
       showFilter={true}
       animatedCellSelection={true}
+      columnRenderers={{ Status: statusRenderer, Role: roleRenderer }}
       onclick={handleClick}
       onselectionchanged={handleSelectionChanged}
     />
@@ -241,5 +289,53 @@
   .grid-container {
     flex: 1;
     overflow: hidden;
+  }
+
+  :global(.status-pill) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    width: 100%;
+    padding: 0 4px;
+    box-sizing: border-box;
+  }
+
+  :global(.status-pill select) {
+    appearance: none;
+    -webkit-appearance: none;
+    border: none;
+    background: transparent;
+    color: inherit;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 9999px;
+    outline: none;
+    width: 100%;
+    text-align: center;
+  }
+
+  :global(.status-pill select:hover) {
+    opacity: 0.8;
+  }
+
+  :global(.role-badge) {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 100%;
+    padding: 0 8px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    box-sizing: border-box;
+  }
+
+  :global(.role-dot) {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
   }
 </style>
