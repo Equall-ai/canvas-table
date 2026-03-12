@@ -26,6 +26,7 @@
       onselectionchanged={(e) => console.log('selection', e)}
     />
 
+    <!-- Column renderers: overlay Svelte snippets on specific columns -->
     {#snippet statusRenderer(cell)}
       <select value={cell.value} onchange={(e) => updateStatus(cell, e)}>
         <option>Active</option>
@@ -35,6 +36,7 @@
 
     <CanvasDatagrid {data} columnRenderers={{ Status: statusRenderer }} />
 
+    <!-- Escape-hatch access to raw grid instance -->
     <button onclick={() => grid.getGrid().fitColumnToValues('all')}>
       Fit Columns
     </button>
@@ -76,10 +78,8 @@
   let container;
   let grid = $state(null);
   let eventCleanups = [];
+  let rendererCleanups = [];
   let renderedCells = $state([]);
-  let overlayEl;
-  let clipTop = 0;
-  let clipLeft = 0;
 
   export function getGrid() {
     return grid;
@@ -115,52 +115,38 @@
     return args;
   }
 
-  // Snapshot of renderer column names — used in event handlers to avoid
-  // reactive reads inside non-reactive callbacks.
-  let rendererColumns = new Set();
-
-  function syncRendererColumns() {
-    rendererColumns = columnRenderers
-      ? new Set(Object.keys(columnRenderers))
-      : new Set();
+  function hasRenderers() {
+    return columnRenderers && Object.keys(columnRenderers).length > 0;
   }
 
   function handleRenderText(e) {
+    if (!hasRenderers()) return;
     const cell = e.cell;
     if (cell && !cell.isHeader && !cell.isRowHeader && !cell.isCorner) {
-      if (cell.header?.name && rendererColumns.has(cell.header.name)) {
+      const colName = cell.header?.name;
+      if (colName && columnRenderers[colName]) {
         e.preventDefault();
       }
     }
   }
 
-  function handleAfterDraw() {
-    if (!grid || rendererColumns.size === 0) {
+  function updateRendererOverlays() {
+    if (!grid || !hasRenderers()) {
       renderedCells = [];
       return;
     }
     const cells = grid.visibleCells;
-    if (!cells || cells.length === 0) {
+    if (!cells) {
       renderedCells = [];
       return;
     }
     const scale = grid.scale || 1;
-    let headerBottom = 0;
-    let rowHeaderRight = 0;
     const newCells = [];
     for (let i = 0; i < cells.length; i++) {
       const cell = cells[i];
-      if (cell.isColumnHeader || cell.isCorner) {
-        const bottom = (cell.y + cell.height) / scale;
-        if (bottom > headerBottom) headerBottom = bottom;
-      }
-      if (cell.isRowHeader || cell.isCorner) {
-        const right = (cell.x + cell.width) / scale;
-        if (right > rowHeaderRight) rowHeaderRight = right;
-      }
       if (cell.isHeader || cell.isRowHeader || cell.isCorner) continue;
       const colName = cell.header?.name;
-      if (colName && rendererColumns.has(colName)) {
+      if (colName && columnRenderers[colName]) {
         newCells.push({
           key: cell.rowIndex + ':' + cell.columnIndex,
           colName,
@@ -176,14 +162,11 @@
         });
       }
     }
-    if (headerBottom !== clipTop || rowHeaderRight !== clipLeft) {
-      clipTop = headerBottom;
-      clipLeft = rowHeaderRight;
-    }
-    if (overlayEl) {
-      overlayEl.style.clipPath = 'inset(' + clipTop + 'px 0 0 ' + clipLeft + 'px)';
-    }
     renderedCells = newCells;
+  }
+
+  function handleAfterDraw() {
+    updateRendererOverlays();
   }
 
   onMount(() => {
@@ -194,24 +177,25 @@
     grid.style.height = '100%';
     grid.style.width = '100%';
 
-    // Ensure overlay is after the grid web component in DOM order
-    // so it paints on top (z-index alone isn't reliable across stacking contexts).
-    if (overlayEl) {
-      container.appendChild(overlayEl);
-    }
-
     for (const [eventName, handler] of Object.entries(events)) {
       grid.addEventListener(eventName, handler);
       eventCleanups.push(() => grid.removeEventListener(eventName, handler));
     }
 
-    // Renderer listeners are managed by the $effect below, which reacts
-    // to columnRenderers changes and handles cleanup automatically.
-    syncRendererColumns();
+    if (hasRenderers()) {
+      grid.addEventListener('rendertext', handleRenderText);
+      grid.addEventListener('afterdraw', handleAfterDraw);
+      rendererCleanups.push(
+        () => grid.removeEventListener('rendertext', handleRenderText),
+        () => grid.removeEventListener('afterdraw', handleAfterDraw),
+      );
+    }
 
     return () => {
       eventCleanups.forEach((fn) => fn());
       eventCleanups = [];
+      rendererCleanups.forEach((fn) => fn());
+      rendererCleanups = [];
       renderedCells = [];
       if (grid && grid.dispose) {
         grid.dispose();
@@ -260,19 +244,16 @@
 
   $effect(() => {
     if (!grid) return;
-    // Read columnRenderers to track it as a dependency
-    const cr = columnRenderers;
-    syncRendererColumns();
-    if (rendererColumns.size > 0) {
+    rendererCleanups.forEach((fn) => fn());
+    rendererCleanups = [];
+    if (hasRenderers()) {
       grid.addEventListener('rendertext', handleRenderText);
       grid.addEventListener('afterdraw', handleAfterDraw);
-      // Trigger initial overlay population
-      handleAfterDraw();
-      return () => {
-        grid.removeEventListener('rendertext', handleRenderText);
-        grid.removeEventListener('afterdraw', handleAfterDraw);
-        renderedCells = [];
-      };
+      rendererCleanups.push(
+        () => grid.removeEventListener('rendertext', handleRenderText),
+        () => grid.removeEventListener('afterdraw', handleAfterDraw),
+      );
+      updateRendererOverlays();
     } else {
       renderedCells = [];
     }
@@ -280,16 +261,18 @@
 </script>
 
 <div bind:this={container} class="canvas-datagrid-container">
-  <div class="cdg-renderer-overlay" bind:this={overlayEl}>
-    {#each renderedCells as cell (cell.key)}
-      <div
-        class="cdg-renderer-cell"
-        style="left:{cell.left}px;top:{cell.top}px;width:{cell.width}px;height:{cell.height}px;"
-      >
-        {@render columnRenderers[cell.colName](cell)}
-      </div>
-    {/each}
-  </div>
+  {#if renderedCells.length > 0}
+    <div class="cdg-renderer-overlay">
+      {#each renderedCells as cell (cell.key)}
+        <div
+          class="cdg-renderer-cell"
+          style="left:{cell.left}px;top:{cell.top}px;width:{cell.width}px;height:{cell.height}px;"
+        >
+          {@render columnRenderers[cell.colName](cell)}
+        </div>
+      {/each}
+    </div>
+  {/if}
 </div>
 
 <style>
