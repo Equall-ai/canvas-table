@@ -76,9 +76,10 @@
   let container;
   let grid = $state(null);
   let eventCleanups = [];
-  let rendererCleanups = [];
   let renderedCells = $state([]);
   let overlayEl;
+  let clipTop = 0;
+  let clipLeft = 0;
 
   export function getGrid() {
     return grid;
@@ -114,34 +115,39 @@
     return args;
   }
 
-  function hasRenderers() {
-    return columnRenderers && Object.keys(columnRenderers).length > 0;
+  // Snapshot of renderer column names — used in event handlers to avoid
+  // reactive reads inside non-reactive callbacks.
+  let rendererColumns = new Set();
+
+  function syncRendererColumns() {
+    rendererColumns = columnRenderers
+      ? new Set(Object.keys(columnRenderers))
+      : new Set();
   }
 
   function handleRenderText(e) {
-    if (!hasRenderers()) return;
     const cell = e.cell;
     if (cell && !cell.isHeader && !cell.isRowHeader && !cell.isCorner) {
-      const colName = cell.header?.name;
-      if (colName && columnRenderers[colName]) {
+      if (cell.header?.name && rendererColumns.has(cell.header.name)) {
         e.preventDefault();
       }
     }
   }
 
-  function updateRendererOverlays() {
-    if (!grid || !hasRenderers()) {
+  function handleAfterDraw() {
+    if (!grid || rendererColumns.size === 0) {
       renderedCells = [];
       return;
     }
     const cells = grid.visibleCells;
-    if (!cells) {
+    if (!cells || cells.length === 0) {
       renderedCells = [];
       return;
     }
     const scale = grid.scale || 1;
     let headerBottom = 0;
     let rowHeaderRight = 0;
+    const newCells = [];
     for (let i = 0; i < cells.length; i++) {
       const cell = cells[i];
       if (cell.isColumnHeader || cell.isCorner) {
@@ -152,16 +158,9 @@
         const right = (cell.x + cell.width) / scale;
         if (right > rowHeaderRight) rowHeaderRight = right;
       }
-    }
-    if (overlayEl) {
-      overlayEl.style.clipPath = 'inset(' + headerBottom + 'px 0 0 ' + rowHeaderRight + 'px)';
-    }
-    const newCells = [];
-    for (let i = 0; i < cells.length; i++) {
-      const cell = cells[i];
       if (cell.isHeader || cell.isRowHeader || cell.isCorner) continue;
       const colName = cell.header?.name;
-      if (colName && columnRenderers[colName]) {
+      if (colName && rendererColumns.has(colName)) {
         newCells.push({
           key: cell.rowIndex + ':' + cell.columnIndex,
           colName,
@@ -177,11 +176,14 @@
         });
       }
     }
+    if (headerBottom !== clipTop || rowHeaderRight !== clipLeft) {
+      clipTop = headerBottom;
+      clipLeft = rowHeaderRight;
+    }
+    if (overlayEl) {
+      overlayEl.style.clipPath = 'inset(' + clipTop + 'px 0 0 ' + clipLeft + 'px)';
+    }
     renderedCells = newCells;
-  }
-
-  function handleAfterDraw() {
-    updateRendererOverlays();
   }
 
   onMount(() => {
@@ -197,20 +199,13 @@
       eventCleanups.push(() => grid.removeEventListener(eventName, handler));
     }
 
-    if (hasRenderers()) {
-      grid.addEventListener('rendertext', handleRenderText);
-      grid.addEventListener('afterdraw', handleAfterDraw);
-      rendererCleanups.push(
-        () => grid.removeEventListener('rendertext', handleRenderText),
-        () => grid.removeEventListener('afterdraw', handleAfterDraw),
-      );
-    }
+    // Renderer listeners are managed by the $effect below, which reacts
+    // to columnRenderers changes and handles cleanup automatically.
+    syncRendererColumns();
 
     return () => {
       eventCleanups.forEach((fn) => fn());
       eventCleanups = [];
-      rendererCleanups.forEach((fn) => fn());
-      rendererCleanups = [];
       renderedCells = [];
       if (grid && grid.dispose) {
         grid.dispose();
@@ -259,16 +254,19 @@
 
   $effect(() => {
     if (!grid) return;
-    rendererCleanups.forEach((fn) => fn());
-    rendererCleanups = [];
-    if (hasRenderers()) {
+    // Read columnRenderers to track it as a dependency
+    const cr = columnRenderers;
+    syncRendererColumns();
+    if (rendererColumns.size > 0) {
       grid.addEventListener('rendertext', handleRenderText);
       grid.addEventListener('afterdraw', handleAfterDraw);
-      rendererCleanups.push(
-        () => grid.removeEventListener('rendertext', handleRenderText),
-        () => grid.removeEventListener('afterdraw', handleAfterDraw),
-      );
-      updateRendererOverlays();
+      // Trigger initial overlay population
+      handleAfterDraw();
+      return () => {
+        grid.removeEventListener('rendertext', handleRenderText);
+        grid.removeEventListener('afterdraw', handleAfterDraw);
+        renderedCells = [];
+      };
     } else {
       renderedCells = [];
     }
@@ -276,18 +274,16 @@
 </script>
 
 <div bind:this={container} class="canvas-datagrid-container">
-  {#if renderedCells.length > 0}
-    <div class="cdg-renderer-overlay" bind:this={overlayEl}>
-      {#each renderedCells as cell (cell.key)}
-        <div
-          class="cdg-renderer-cell"
-          style="left:{cell.left}px;top:{cell.top}px;width:{cell.width}px;height:{cell.height}px;"
-        >
-          {@render columnRenderers[cell.colName](cell)}
-        </div>
-      {/each}
-    </div>
-  {/if}
+  <div class="cdg-renderer-overlay" bind:this={overlayEl}>
+    {#each renderedCells as cell (cell.key)}
+      <div
+        class="cdg-renderer-cell"
+        style="left:{cell.left}px;top:{cell.top}px;width:{cell.width}px;height:{cell.height}px;"
+      >
+        {@render columnRenderers[cell.colName](cell)}
+      </div>
+    {/each}
+  </div>
 </div>
 
 <style>
