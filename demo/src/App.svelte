@@ -1,5 +1,5 @@
 <script>
-  import CanvasDatagrid from 'canvas-datagrid/svelte';
+  import CanvasDatagrid from '../../svelte/CanvasDatagrid.svelte';
 
   let gridComponent;
   let rowCount = $state(500);
