@@ -194,6 +194,12 @@
     grid.style.height = '100%';
     grid.style.width = '100%';
 
+    // Ensure overlay is after the grid web component in DOM order
+    // so it paints on top (z-index alone isn't reliable across stacking contexts).
+    if (overlayEl) {
+      container.appendChild(overlayEl);
+    }
+
     for (const [eventName, handler] of Object.entries(events)) {
       grid.addEventListener(eventName, handler);
       eventCleanups.push(() => grid.removeEventListener(eventName, handler));
