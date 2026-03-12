@@ -26,7 +26,6 @@
       onselectionchanged={(e) => console.log('selection', e)}
     />
 
-    <!-- Column renderers: overlay Svelte snippets on specific columns -->
     {#snippet statusRenderer(cell)}
       <select value={cell.value} onchange={(e) => updateStatus(cell, e)}>
         <option>Active</option>
@@ -36,7 +35,6 @@
 
     <CanvasDatagrid {data} columnRenderers={{ Status: statusRenderer }} />
 
-    <!-- Escape-hatch access to raw grid instance -->
     <button onclick={() => grid.getGrid().fitColumnToValues('all')}>
       Fit Columns
     </button>

@@ -1,5 +1,5 @@
 <script>
-  import CanvasDatagrid from 'canvas-datagrid/svelte';
+  import CanvasDatagrid from '../../svelte/CanvasDatagrid.svelte';
 
   let gridComponent;
   let rowCount = $state(500);
@@ -7,9 +7,9 @@
   let clickInfo = $state('');
 
   const sampleColumns = [
-    'ID', 'Name', 'Email', 'Age', 'City', 'Country',
+    'ID', 'Name', 'Email', 'Age', 'City', 'Status', 'Country',
     'Phone', 'Company', 'Role', 'Salary', 'Start Date',
-    'Department', 'Status', 'Rating', 'Notes'
+    'Department', 'Rating', 'Notes'
   ];
 
   const cities = ['New York', 'London', 'Tokyo', 'Paris', 'Berlin', 'Sydney', 'Toronto', 'Mumbai', 'São Paulo', 'Cairo'];
