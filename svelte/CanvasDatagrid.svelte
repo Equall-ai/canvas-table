@@ -167,6 +167,16 @@
     updateRendererOverlays();
   }
 
+  function forwardWheel(e) {
+    if (!grid) return;
+    const canvas = container.querySelector('canvas-datagrid')?.shadowRoot?.querySelector('canvas')
+      || container.querySelector('canvas');
+    if (canvas) {
+      canvas.dispatchEvent(new WheelEvent('wheel', e));
+      e.preventDefault();
+    }
+  }
+
   onMount(() => {
     const { events, attrs } = partitionProps(restProps);
 
@@ -260,7 +270,7 @@
 
 <div bind:this={container} class="canvas-datagrid-container">
   {#if renderedCells.length > 0}
-    <div class="cdg-renderer-overlay">
+    <div class="cdg-renderer-overlay" onwheel={forwardWheel}>
       {#each renderedCells as cell (cell.key)}
         <div
           class="cdg-renderer-cell"
