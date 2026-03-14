@@ -1,180 +1,222 @@
-# canvas-datagrid
+# @equall/canvas-table
 
-[Demo](https://canvas-datagrid.js.org/examples/create-new-grid)
+A high-performance canvas-based data grid with first-class Svelte 5 support. Renders millions of rows on a single `<canvas>` element with sortable columns, inline editing, filtering, keyboard navigation, and custom column renderers via Svelte snippets.
 
-![canvas-datagrid](https://canvas-datagrid.js.org/assets/images/datagrid1-a4d23a352c39919c40450d272a1cd4bd.png)
-
-[![NPM](https://img.shields.io/npm/v/canvas-datagrid.svg)](https://www.npmjs.com/package/canvas-datagrid)
-[![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
-[![Published on webcomponents.org](https://img.shields.io/badge/webcomponents.org-published-blue.svg)](https://www.webcomponents.org/element/TonyGermaneri/canvas-datagrid)
-
-- Works with Firefox, Edge, Safari and Chrome.
-- Native support for touch devices (phones and tablets).
-- Rich [documentation](https://canvas-datagrid.js.org/), [tutorials](https://canvas-datagrid.js.org/#tutorials), and [slack support](https://canvas-datagrid.slack.com/).
-- Single canvas element, drawn in immediate mode, data size does not impact performance.
-- Support for unlimited rows and columns without paging or loading.
-- Rich API of events, methods and properties using the familiar W3C DOM interface.
-- Extensible styling, filtering, formatting, resizing, selecting, and ordering.
-- Support for hierarchal drill in style row level inner grids as well grids in cells.
-- Customizable hierarchal context menu.
-- Built in and custom styles.
-- W3C Web Component. Works in all frameworks.
-- Per-user styles, column sizes, row sizes, view preferences and settings using localStorage.
-- Small file size
-
-[Documentation](https://canvas-datagrid.js.org/)
-
-[Tutorials](https://canvas-datagrid.js.org/#tutorials)
-
-[Slack Support](https://canvas-datagrid.slack.com/) (message author for invite)
-
-[Style Builder](https://canvas-datagrid.js.org/styleBuilder.html)
-
-[Download latest version (minified)](https://canvas-datagrid.js.org/canvas-datagrid.js)
-
-[Tests](https://canvas-datagrid.js.org/test/tests.html)
-
-[Source Code](https://github.com/TonyGermaneri/canvas-datagrid)
-
-[Latest Test Coverage](https://canvas-datagrid.js.org/build/report/lcov-report/index.html)
+Based on [canvas-datagrid](https://github.com/TonyGermaneri/canvas-datagrid).
 
 ## Installation
 
-With [npm](https://www.npmjs.com/package/canvas-datagrid)
-
-```console
-npm install canvas-datagrid
+```bash
+npm install @equall/canvas-table
 ```
 
-Place the single source file `./dist/canvas-datagrid.js` in your web page using a script tag that points to the source or use webpack.
+## Svelte 5 Component
 
-```html
-<script src="dist/canvas-datagrid.js"></script>
+```svelte
+<script>
+  import CanvasDatagrid from '@equall/canvas-table/svelte';
+
+  const data = [
+    { name: 'Alice', age: 30, city: 'New York' },
+    { name: 'Bob', age: 25, city: 'London' },
+  ];
+</script>
+
+<CanvasDatagrid {data} editable allowSorting showFilter />
 ```
 
-Alternatively, instead of downloading and installing, you can link directly to an NPM CDN like [unpkg.com](https://unpkg.com).
+### Props
 
-```html
-<script src="https://unpkg.com/canvas-datagrid"></script>
+| Prop | Type | Description |
+|------|------|-------------|
+| `data` | `Array<object>` | Array of row objects (bindable) |
+| `schema` | `Array<object>` | Column definitions (`{ name, type, width }`) (bindable) |
+| `style` | `object` | Grid style overrides (see [style properties](#style-properties)) |
+| `columnRenderers` | `object` | Map of column names to Svelte snippets |
+| `formatters` | `object` | Custom cell formatters |
+| `sorters` | `object` | Custom sort functions |
+| `filters` | `object` | Custom filter functions |
+| `on*` | `function` | Any `on`-prefixed prop is forwarded as a grid event listener |
+| *any other* | `any` | Passed as a grid attribute (e.g. `editable`, `allowSorting`) |
+
+### Events
+
+Pass event handlers as `on*` props:
+
+```svelte
+<CanvasDatagrid
+  {data}
+  onclick={(e) => console.log('clicked', e.cell)}
+  onselectionchanged={(e) => console.log('selection changed')}
+  onafterrendercell={(e) => { /* custom cell rendering */ }}
+/>
 ```
 
-A function will be added to the global scope of the web page called `canvasDatagrid` as well as module loader definitions.
+Common events: `click`, `dblclick`, `selectionchanged`, `beforerendercell`, `rendercell`, `afterrendercell`, `afterdraw`, `contextmenu`, `keydown`, `scroll`.
 
-## Getting started
+### Schema
 
-Works [with webpack](https://canvas-datagrid.js.org/amdDemo.html), [without webpack](https://canvas-datagrid.js.org/demo.html) or as a [web component](https://canvas-datagrid.js.org/webcomponentDemo.html).
-No matter how you load it, `canvasDatagrid` is declared in the global scope.
+Define column types, widths, and display names:
 
-Canvas-datagrid is a [Web Component](https://www.webcomponents.org/element/TonyGermaneri/canvas-datagrid) when
-in a compatible browser, otherwise it is a `<canvas>` tag.
+```svelte
+<script>
+  const schema = [
+    { name: 'name', type: 'string', width: 200 },
+    { name: 'age', type: 'number', width: 100 },
+    { name: 'email', type: 'string', width: 250 },
+  ];
+</script>
 
-## Using pure JavaScript
+<CanvasDatagrid {data} {schema} />
+```
+
+If no schema is provided, columns are auto-detected from the data.
+
+### Accessing the Grid Instance
+
+Use `bind:this` and `getGrid()` for escape-hatch access to the underlying canvas-datagrid API:
+
+```svelte
+<script>
+  let gridComponent;
+
+  function fitColumns() {
+    gridComponent.getGrid().fitColumnToValues('all');
+  }
+</script>
+
+<CanvasDatagrid bind:this={gridComponent} {data} />
+<button onclick={fitColumns}>Fit Columns</button>
+```
+
+### Animated Cell Selection
+
+Enable a smooth DOM-based selection overlay that animates between cells:
+
+```svelte
+<CanvasDatagrid
+  {data}
+  animatedCellSelection={true}
+  animatedCellSelectionDuration={150}
+  animatedCellSelectionBorderRadius={5}
+/>
+```
+
+| Attribute | Default | Description |
+|-----------|---------|-------------|
+| `animatedCellSelection` | `false` | Enable DOM-based selection overlay |
+| `animatedCellSelectionDuration` | `150` | Transition duration in ms |
+| `animatedCellSelectionBorderRadius` | `5` | Border radius of selection box in px |
+
+### Column Renderers
+
+Overlay Svelte snippets on specific columns to replace the default canvas-drawn text with interactive DOM elements:
+
+```svelte
+<script>
+  import CanvasDatagrid from '@equall/canvas-table/svelte';
+
+  let data = $state([
+    { name: 'Alice', status: 'Active' },
+    { name: 'Bob', status: 'On Leave' },
+  ]);
+
+  const statusColors = {
+    'Active': '#dcfce7',
+    'On Leave': '#fef9c3',
+  };
+
+  function updateStatus(cell, e) {
+    data[cell.rowIndex].status = e.target.value;
+    data = [...data];
+  }
+</script>
+
+{#snippet statusRenderer(cell)}
+  <div style="background:{statusColors[cell.value]};padding:2px 8px;border-radius:9999px;">
+    <select value={cell.value} onchange={(e) => updateStatus(cell, e)}>
+      <option>Active</option>
+      <option>On Leave</option>
+    </select>
+  </div>
+{/snippet}
+
+<CanvasDatagrid
+  {data}
+  columnRenderers={{ status: statusRenderer }}
+/>
+```
+
+Each snippet receives a cell object with:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `value` | `any` | The cell's current value |
+| `row` | `object` | The full row data object |
+| `rowIndex` | `number` | Row index in the data array |
+| `columnIndex` | `number` | Column index |
+| `colName` | `string` | Column name |
+| `formattedValue` | `string` | Formatted display value |
+
+Renderer overlays are positioned absolutely over the canvas cells, updated on every draw cycle, and automatically recycled as rows scroll in and out of view.
+
+### Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| Arrow keys | Navigate between cells |
+| Shift + Arrow | Extend selection |
+| Cmd/Ctrl + Arrow | Jump to edge of data |
+| Enter | Begin editing / confirm edit |
+| Escape | Cancel editing |
+| Tab | Move to next cell |
+
+## Vanilla JavaScript
 
 ```js
-var grid = canvasDatagrid();
-document.body.appendChild(grid);
-grid.data = [
-  { col1: 'row 1 column 1', col2: 'row 1 column 2', col3: 'row 1 column 3' },
-  { col1: 'row 2 column 1', col2: 'row 2 column 2', col3: 'row 2 column 3' },
-];
+import canvasDatagrid from '@equall/canvas-table';
+
+const grid = canvasDatagrid({
+  parentNode: document.getElementById('grid'),
+  data: [
+    { col1: 'row 1 column 1', col2: 'row 1 column 2' },
+    { col1: 'row 2 column 1', col2: 'row 2 column 2' },
+  ],
+});
 ```
 
-## Using Web Component
-
-<!--
-```
-<custom-element-demo>
-  <template>
-    <script src="https://canvas-datagrid.js.org/canvas-datagrid.debug.js"></script>
-    <div style="height: 300px;"><next-code-block></next-code-block></div>
-  </template>
-</custom-element-demo>
-```
--->
+## Web Component
 
 ```html
-<canvas-datagrid class="myGridStyle" data="data can go here too"
-  >[ {"col1": "row 1 column 1", "col2": "row 1 column 2", "col3": "row 1 column
-  3"}, {"col1": "row 2 column 1", "col2": "row 2 column 2", "col3": "row 2
-  column 3"} ]</canvas-datagrid
->
+<canvas-datagrid data='[{"col1": "value1", "col2": "value2"}]'></canvas-datagrid>
 ```
 
-or
+## Style Properties
 
-```js
-var grid = document.createElement('canvas-datagrid');
-grid.data = [
-  { col1: 'row 1 column 1', col2: 'row 1 column 2', col3: 'row 1 column 3' },
-  { col1: 'row 2 column 1', col2: 'row 2 column 2', col3: 'row 2 column 3' },
-];
+Pass style overrides via the `style` prop:
+
+```svelte
+<CanvasDatagrid
+  {data}
+  style={{
+    cellHeight: 30,
+    cellFont: '14px sans-serif',
+    activeCellOverlayBorderColor: '#1a73e8',
+    activeCellOverlayBorderWidth: 2,
+  }}
+/>
 ```
 
-## Using Vue
-
-```vue
-<canvas-datagrid :data.prop="[{"col1": "row 1 column 1"}]"></canvas-datagrid>
-```
-
-## More Demos
-
-- [Using Vue](https://canvas-datagrid.js.org/vueExample.html)
-
-- [Using Webpack3: AMD](https://canvas-datagrid.js.org/amdDemo.html)
-
-- [Using React](https://canvas-datagrid.js.org/reactExample.html)
-
-- [Web component example](https://canvas-datagrid.js.org/webcomponentDemo.html)
-
-- [Loading data with XHR](https://canvas-datagrid.js.org/demo.html)
-
-- [Sparkline example](https://canvas-datagrid.js.org/sparklineDemo.html)
-
-- [XHR data paging demo Jeopardy Questions API](https://canvas-datagrid.js.org/xhrPagingDemo.html)
-
-Note about XHR paging demo: Thanks to [jservice](http://jservice.io/) for the use of the free paging API. You must "load unsafe scripts" or relevant command to allow HTTPS (github) to make XHR requests to HTTP (Jeopardy Questions API). There is nothing unsafe about this.
+See the [full style reference](https://canvas-datagrid.js.org/) for all available properties.
 
 ## Building & Testing
 
-To install development dependencies. Required to build or test.
+```bash
+npm install
+npm run build
+npm test
+```
 
-    npm install
+## License
 
-To build production and debug versions:
-
-    npm run build
-
-To build documentation:
-
-    npm run build:docs
-
-To build types:
-
-    npm run build:types
-
-To run tests. Note: Headless tests will mostly fail due to lack of headless canvas pixel detection support. Use VM testing or your browser.
-
-    npm test
-
-### Windows 10 WSL Testing
-*This is info for wsl version 1. v2 seems to be [different](https://dev.to/davelsan/comment/nnf5).*
-
-- `CHROME_BIN` needs to be set to the location of your Google Chrome exe in Windows. (e.g. `/mnt/c/Program Files (x86)/Google/Chrome/Application/chrome.exe`)
-   *in WSL, `export CHROME_BIN='path/to/chrome'`*
-- Chrome needs access to [karma's temp folder](https://stackoverflow.com/a/56204265/292067).
-  - Create a `tmp` folder on the same Windows drive as your repo.
-  - set `TEMP` to a folder that exists on the same Windows drive as your repo. (matching capitalization probably matters)
-    *in WSL, `export TEMP='/Temp/karma'`, if your repo is on drive C, then create folder C:\Temp\karma*
-- karma.conf.js needs to be edited
-  - Change the browser from `ChromeHeadless` to `Chrome`
-  - Modify to run ChromeHeadless without sandboxing. This is not ideal, but it seems to be necessary in [WSL](https://github.com/microsoft/WSL/issues/3282) and [Linux containers](https://docs.travis-ci.com/user/chrome#sandboxing) ([see also](https://github.com/karma-runner/karma-chrome-launcher/issues/158#issuecomment-339265457))
-    - Add a custom launcher
-      ```
-      customLaunchers: {
-        ChromeHeadlessNoSandbox: {
-            base: 'ChromeHeadless',
-            flags: ['--no-sandbox']
-        }
-      }
-      ```
-    - Change the browser from `ChromeHeadless` to `ChromeHeadlessNoSandbox`
+BSD-3-Clause
