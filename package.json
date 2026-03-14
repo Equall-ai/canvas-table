@@ -1,8 +1,11 @@
 {
-  "name": "canvas-datagrid",
+  "name": "@equall/canvas-table",
   "version": "0.4.7",
   "description": "Canvas based data grid web component. Capable of displaying millions of contiguous hierarchical rows and columns without paging or loading, on a single canvas element.",
   "main": "./dist/canvas-datagrid.js",
+  "publishConfig": {
+  "registry": "https://npm.pkg.github.com/" 
+  },
   "module": "./dist/canvas-datagrid.module.js",
   "svelte": "./lib/main.js",
   "scripts": {
@@ -29,8 +32,7 @@
     "CHANGELOG.md"
   ],
   "repository": {
-    "type": "git",
-    "url": "git+https://github.com/TonyGermaneri/canvas-datagrid.git"
+    "url": "https://github.com/Equall-ai/canvas-table"
   },
   "keywords": [
     "data",
