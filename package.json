@@ -115,9 +115,15 @@
       "default": "./dist/canvas-datagrid.js"
     },
     "./svelte": {
+      "types": "./svelte/types.ts",
       "svelte": "./svelte/index.js",
       "import": "./svelte/index.js",
       "default": "./svelte/index.js"
+    },
+    "./types": {
+      "types": "./svelte/types.ts",
+      "import": "./svelte/types.ts",
+      "default": "./svelte/types.ts"
     },
     "./package.json": "./package.json"
   }
