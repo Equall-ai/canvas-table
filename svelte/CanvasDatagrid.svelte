@@ -64,6 +64,8 @@
     schema = $bindable(undefined),
     style: gridStyle = {},
     columnRenderers = {},
+    htmlHeaders = false,
+    columnHeaderRenderers = {},
     formatters = undefined,
     sorters = undefined,
     filters = undefined,
@@ -78,6 +80,8 @@
   let eventCleanups = [];
   let rendererCleanups = [];
   let renderedCells = $state([]);
+  let renderedHeaders = $state([]);
+  let headerStyles = $state({});
 
   export function getGrid() {
     return grid;
@@ -118,14 +122,78 @@
   }
 
   function handleRenderText(e) {
-    if (!hasRenderers()) return;
     const cell = e.cell;
-    if (cell && !cell.isHeader && !cell.isRowHeader && !cell.isCorner) {
+    if (!cell) return;
+    // Suppress header text when htmlHeaders is enabled
+    if (htmlHeaders && cell.isColumnHeader && !cell.isRowHeader && !cell.isCorner) {
+      e.preventDefault();
+      return;
+    }
+    // Suppress cell text for custom column renderers
+    if (hasRenderers() && !cell.isHeader && !cell.isRowHeader && !cell.isCorner) {
       const colName = cell.header?.name;
       if (colName && columnRenderers[colName]) {
         e.preventDefault();
       }
     }
+  }
+
+  function getHeaderStyles() {
+    if (!grid) return {};
+    const s = grid.style;
+    return {
+      backgroundColor: s.columnHeaderCellBackgroundColor || 'rgba(240, 240, 240, 1)',
+      borderColor: s.columnHeaderCellBorderColor || 'rgba(172, 172, 172, 1)',
+      borderWidth: (s.columnHeaderCellBorderWidth ?? 1) + 'px',
+      color: s.columnHeaderCellColor || 'rgba(50, 50, 50, 1)',
+      font: s.columnHeaderCellFont || '16px sans-serif',
+      paddingLeft: (s.columnHeaderCellPaddingLeft ?? 5) + 'px',
+      paddingRight: (s.columnHeaderCellPaddingRight ?? 5) + 'px',
+      paddingTop: (s.columnHeaderCellPaddingTop ?? 5) + 'px',
+      paddingBottom: (s.columnHeaderCellPaddingBottom ?? 5) + 'px',
+      textAlign: s.columnHeaderCellHorizontalAlignment || 'left',
+      hoverBackgroundColor: s.columnHeaderCellHoverBackgroundColor || 'rgba(235, 235, 235, 1)',
+      hoverColor: s.columnHeaderCellHoverColor || 'rgba(0, 0, 0, 1)',
+    };
+  }
+
+  function updateHeaderOverlays() {
+    if (!grid || !htmlHeaders) {
+      renderedHeaders = [];
+      return;
+    }
+    const cells = grid.visibleCells;
+    if (!cells) {
+      renderedHeaders = [];
+      return;
+    }
+    const scale = grid.scale || 1;
+    const newHeaders = [];
+    for (let i = 0; i < cells.length; i++) {
+      const cell = cells[i];
+      if (!cell.isColumnHeader || cell.isRowHeader || cell.isCorner || cell.isColumnHeaderCellCap) continue;
+      const colName = cell.header?.name;
+      if (!colName) continue;
+      newHeaders.push({
+        key: 'h:' + cell.columnIndex,
+        colName,
+        title: cell.header?.title || colName,
+        columnIndex: cell.columnIndex,
+        left: cell.x / scale,
+        top: cell.y / scale,
+        width: cell.width / scale,
+        height: cell.height / scale,
+        sortDirection: grid.orderBy === colName ? grid.orderDirection : null,
+      });
+    }
+    headerStyles = getHeaderStyles();
+    renderedHeaders = newHeaders;
+  }
+
+  function handleHeaderClick(header) {
+    if (!grid) return;
+    const currentDir = grid.orderBy === header.colName ? grid.orderDirection : null;
+    grid.order(header.colName, currentDir === 'asc' ? 'desc' : 'asc');
   }
 
   function updateRendererOverlays() {
@@ -165,6 +233,7 @@
 
   function handleAfterDraw() {
     updateRendererOverlays();
+    updateHeaderOverlays();
   }
 
   function forwardWheel(e) {
@@ -190,7 +259,7 @@
       eventCleanups.push(() => grid.removeEventListener(eventName, handler));
     }
 
-    if (hasRenderers()) {
+    if (hasRenderers() || htmlHeaders) {
       grid.addEventListener('rendertext', handleRenderText);
       grid.addEventListener('afterdraw', handleAfterDraw);
       rendererCleanups.push(
@@ -205,6 +274,7 @@
       rendererCleanups.forEach((fn) => fn());
       rendererCleanups = [];
       renderedCells = [];
+      renderedHeaders = [];
       if (grid && grid.dispose) {
         grid.dispose();
       }
@@ -254,7 +324,7 @@
     if (!grid) return;
     rendererCleanups.forEach((fn) => fn());
     rendererCleanups = [];
-    if (hasRenderers()) {
+    if (hasRenderers() || htmlHeaders) {
       grid.addEventListener('rendertext', handleRenderText);
       grid.addEventListener('afterdraw', handleAfterDraw);
       rendererCleanups.push(
@@ -262,8 +332,10 @@
         () => grid.removeEventListener('afterdraw', handleAfterDraw),
       );
       updateRendererOverlays();
+      updateHeaderOverlays();
     } else {
       renderedCells = [];
+      renderedHeaders = [];
     }
   });
 </script>
@@ -278,6 +350,26 @@
         >
           {@render columnRenderers[cell.colName](cell)}
         </div>
+      {/each}
+    </div>
+  {/if}
+  {#if renderedHeaders.length > 0}
+    <div class="cdg-header-overlay">
+      {#each renderedHeaders as header (header.key)}
+        <button
+          class="cdg-header-cell"
+          style="left:{header.left}px;top:{header.top}px;width:{header.width}px;height:{header.height}px;background:{headerStyles.backgroundColor};color:{headerStyles.color};font:{headerStyles.font};text-align:{headerStyles.textAlign};padding:{headerStyles.paddingTop} {headerStyles.paddingRight} {headerStyles.paddingBottom} {headerStyles.paddingLeft};border:none;border-right:{headerStyles.borderWidth} solid {headerStyles.borderColor};border-bottom:{headerStyles.borderWidth} solid {headerStyles.borderColor};"
+          onclick={() => handleHeaderClick(header)}
+        >
+          {#if columnHeaderRenderers[header.colName]}
+            {@render columnHeaderRenderers[header.colName](header)}
+          {:else}
+            <span class="cdg-header-text">{header.title}</span>
+            {#if header.sortDirection}
+              <span class="cdg-header-sort">{header.sortDirection === 'asc' ? '▲' : '▼'}</span>
+            {/if}
+          {/if}
+        </button>
       {/each}
     </div>
   {/if}
@@ -308,5 +400,46 @@
     display: flex;
     align-items: center;
     box-sizing: border-box;
+  }
+
+  .cdg-header-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 2;
+    overflow: hidden;
+  }
+
+  .cdg-header-cell {
+    position: absolute;
+    overflow: hidden;
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    cursor: pointer;
+    outline: none;
+    margin: 0;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .cdg-header-cell:hover {
+    filter: brightness(0.97);
+  }
+
+  .cdg-header-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .cdg-header-sort {
+    margin-left: 4px;
+    font-size: 0.7em;
+    opacity: 0.6;
   }
 </style>

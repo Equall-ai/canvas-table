@@ -330,6 +330,30 @@ export interface GridAttributes {
   [key: string]: any;
 }
 
+// ─── Header Renderer Cell ────────────────────────────────────────────────────
+
+/** Cell data passed to column header renderer snippets. */
+export interface HeaderRendererCell {
+  /** Unique key for the header cell. */
+  key: string;
+  /** Column name from the schema. */
+  colName: string;
+  /** Display title for the column. */
+  title: string;
+  /** Column index. */
+  columnIndex: number;
+  /** CSS left position in pixels. */
+  left: number;
+  /** CSS top position in pixels. */
+  top: number;
+  /** CSS width in pixels. */
+  width: number;
+  /** CSS height in pixels. */
+  height: number;
+  /** Current sort direction for this column, or null if not sorted. */
+  sortDirection: 'asc' | 'desc' | null;
+}
+
 // ─── Component Props ─────────────────────────────────────────────────────────
 
 /** Props for the CanvasDatagrid Svelte component. */
@@ -342,6 +366,10 @@ export interface CanvasDatagridProps extends GridAttributes, GridEventHandlers {
   style?: Record<string, any>;
   /** Map of column names to Svelte snippet renderers. */
   columnRenderers?: Record<string, Snippet<[RendererCell]>>;
+  /** Render column headers as HTML DOM elements instead of canvas-drawn text. */
+  htmlHeaders?: boolean;
+  /** Map of column names to custom header renderer snippets (requires htmlHeaders). */
+  columnHeaderRenderers?: Record<string, Snippet<[HeaderRendererCell]>>;
   /** Custom cell value formatters. */
   formatters?: Record<string, (e: { cell: Cell }) => string>;
   /** Custom column sort functions. */
