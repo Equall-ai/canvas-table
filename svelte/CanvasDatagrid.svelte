@@ -87,8 +87,11 @@
 
   // Row animation state
   let prevIdSet = new Set();
-  let animatingRows = new Map(); // rowIndex -> { start, duration, direction }
+  let prevData = []; // previous data array for removal reconstruction
+  let animatingRows = new Map(); // rowIndex -> { start, duration, from, to }
   let animFrameId = null;
+  let pendingRemovalData = null; // deferred data to apply after removal animation
+  let skipNextAnimCheck = false;
 
   function getAnimConfig() {
     if (!animateRows) return null;
@@ -96,50 +99,108 @@
     return { duration: animateRows.duration || 200, key: animateRows.key || 'id' };
   }
 
-  function animateInsertedRows(newData, oldIdSet) {
+  function animateDataChange(newData, oldIdSet, oldData) {
     if (!grid) return;
     const cfg = getAnimConfig();
     if (!cfg) return;
 
     const key = cfg.key;
-    const targetHeight = grid.style.cellHeight || 25;
+    const cellHeight = grid.style.cellHeight || 25;
     const now = performance.now();
 
-    // Find new row indices
-    const newIndices = [];
-    for (let i = 0; i < newData.length; i++) {
-      const id = newData[i][key];
-      if (id != null && !oldIdSet.has(id)) {
-        newIndices.push(i);
-      }
-    }
-
-    // Find removed row indices (rows in old set but not new)
+    // Build new ID set
     const newIdSet = new Set();
     for (let i = 0; i < newData.length; i++) {
       const id = newData[i][key];
       if (id != null) newIdSet.add(id);
     }
 
-    if (newIndices.length === 0) return;
+    // Find inserted IDs
+    const insertedIds = new Set();
+    for (let i = 0; i < newData.length; i++) {
+      const id = newData[i][key];
+      if (id != null && !oldIdSet.has(id)) insertedIds.add(id);
+    }
 
-    // Clear any in-progress animations and their size overrides
+    // Find removed IDs
+    const removedIdSet = new Set();
+    for (const id of oldIdSet) {
+      if (!newIdSet.has(id)) removedIdSet.add(id);
+    }
+
+    // Clear any in-progress animations
     for (const [idx] of animatingRows) {
       delete grid.sizes.rows[idx];
     }
     animatingRows.clear();
 
-    // Set initial height to 0 for new rows
-    for (const idx of newIndices) {
-      grid.sizes.rows[idx] = 0.1;
-      animatingRows.set(idx, {
-        start: now,
-        duration: cfg.duration,
-        target: targetHeight,
-      });
+    const hasInsertions = insertedIds.size > 0;
+    const hasRemovals = removedIdSet.size > 0;
+    if (!hasInsertions && !hasRemovals) return;
+
+    if (hasRemovals) {
+      // Reconstruct the old data order: keep all old rows (including removed ones)
+      // but with surviving rows updated to their new values
+      const newDataById = new Map();
+      for (const row of newData) {
+        const id = row[key];
+        if (id != null) newDataById.set(id, row);
+      }
+
+      const mergedData = [];
+      const removedIndices = [];
+      for (const row of oldData) {
+        const id = row[key];
+        if (removedIdSet.has(id)) {
+          removedIndices.push(mergedData.length);
+          mergedData.push(row);
+        } else if (newDataById.has(id)) {
+          mergedData.push(newDataById.get(id));
+          newDataById.delete(id);
+        }
+      }
+      // Append any new rows (insertions) at their correct positions
+      // We need to interleave them properly. For simplicity, handle
+      // insertions separately after the removal animation.
+      for (const row of newData) {
+        const id = row[key];
+        if (id != null && insertedIds.has(id)) {
+          mergedData.push(row);
+        }
+      }
+
+      skipNextAnimCheck = true;
+      grid.data = mergedData;
+
+      for (const idx of removedIndices) {
+        grid.sizes.rows[idx] = cellHeight;
+        animatingRows.set(idx, {
+          start: now,
+          duration: cfg.duration,
+          from: cellHeight,
+          to: 0,
+        });
+      }
+
+      pendingRemovalData = newData;
     }
 
-    // Start animation loop if not already running
+    // Handle insertions (only if no removals — otherwise handled after removal completes)
+    if (hasInsertions && !hasRemovals) {
+      for (let i = 0; i < newData.length; i++) {
+        const id = newData[i][key];
+        if (id != null && insertedIds.has(id)) {
+          grid.sizes.rows[i] = 0.1;
+          animatingRows.set(i, {
+            start: now,
+            duration: cfg.duration,
+            from: 0,
+            to: cellHeight,
+          });
+        }
+      }
+    }
+
     if (!animFrameId) {
       animFrameId = requestAnimationFrame(animationTick);
     }
@@ -148,6 +209,7 @@
   function animationTick(now) {
     if (!grid || animatingRows.size === 0) {
       animFrameId = null;
+      applyPendingRemoval();
       return;
     }
 
@@ -155,15 +217,14 @@
     for (const [idx, anim] of animatingRows) {
       const elapsed = now - anim.start;
       const progress = Math.min(elapsed / anim.duration, 1);
-      // ease-out cubic
       const eased = 1 - Math.pow(1 - progress, 3);
-      const currentHeight = eased * anim.target;
+      const currentHeight = anim.from + eased * (anim.to - anim.from);
 
       if (progress >= 1) {
         delete grid.sizes.rows[idx];
         animatingRows.delete(idx);
       } else {
-        grid.sizes.rows[idx] = currentHeight;
+        grid.sizes.rows[idx] = Math.max(0.1, currentHeight);
         anyActive = true;
       }
     }
@@ -174,6 +235,17 @@
       animFrameId = requestAnimationFrame(animationTick);
     } else {
       animFrameId = null;
+      applyPendingRemoval();
+    }
+  }
+
+  function applyPendingRemoval() {
+    if (pendingRemovalData && grid) {
+      const finalData = pendingRemovalData;
+      pendingRemovalData = null;
+      skipNextAnimCheck = true;
+      grid.data = finalData;
+      grid.draw();
     }
   }
 
@@ -463,8 +535,9 @@
     if (grid && data) {
       const cfg = getAnimConfig();
       const oldIdSet = prevIdSet;
+      const oldDataArr = prevData;
 
-      // Update the ID set before setting data
+      // Update tracking state
       if (cfg) {
         const newSet = new Set();
         for (let i = 0; i < data.length; i++) {
@@ -472,12 +545,18 @@
           if (id != null) newSet.add(id);
         }
         prevIdSet = newSet;
+        prevData = data;
+      }
+
+      if (skipNextAnimCheck) {
+        skipNextAnimCheck = false;
+        return;
       }
 
       grid.data = data;
 
       if (cfg && oldIdSet.size > 0) {
-        animateInsertedRows(data, oldIdSet);
+        animateDataChange(data, oldIdSet, oldDataArr);
       }
     }
   });
