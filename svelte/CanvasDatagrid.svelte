@@ -66,6 +66,7 @@
     columnRenderers = {},
     htmlHeaders = false,
     columnHeaderRenderers = {},
+    cellStyle = undefined,
     formatters = undefined,
     sorters = undefined,
     filters = undefined,
@@ -121,6 +122,57 @@
     return columnRenderers && Object.keys(columnRenderers).length > 0;
   }
 
+  const shadowPresets = {
+    none: { blur: 0, offsetX: 0, offsetY: 0, color: 'transparent' },
+    sm: { blur: 2, offsetX: 0, offsetY: 1, color: 'rgba(0,0,0,0.12)' },
+    md: { blur: 4, offsetX: 0, offsetY: 2, color: 'rgba(0,0,0,0.16)' },
+    lg: { blur: 8, offsetX: 0, offsetY: 4, color: 'rgba(0,0,0,0.2)' },
+  };
+
+  function getCellStyleObj(cell) {
+    if (!cellStyle) return null;
+    return cellStyle({
+      value: cell.value,
+      row: cell.data,
+      rowIndex: cell.rowIndex,
+      columnIndex: cell.columnIndex,
+      colName: cell.header?.name,
+      header: cell.header,
+    });
+  }
+
+  function handleRenderCell(e) {
+    if (!cellStyle) return;
+    const cell = e.cell;
+    if (!cell || cell.isHeader || cell.isRowHeader || cell.isCorner) return;
+    const s = getCellStyleObj(cell);
+    if (!s) return;
+    const ctx = e.ctx;
+    if (s.backgroundColor) ctx.fillStyle = s.backgroundColor;
+    if (s.borderColor) ctx.strokeStyle = s.borderColor;
+    if (s.borderWidth != null) ctx.lineWidth = s.borderWidth;
+    if (s.shadow && s.shadow !== 'none') {
+      const preset = shadowPresets[s.shadow] || shadowPresets.none;
+      ctx.shadowColor = preset.color;
+      ctx.shadowBlur = preset.blur;
+      ctx.shadowOffsetX = preset.offsetX;
+      ctx.shadowOffsetY = preset.offsetY;
+    }
+  }
+
+  function handleAfterRenderCell(e) {
+    if (!cellStyle) return;
+    const cell = e.cell;
+    if (!cell || cell.isHeader || cell.isRowHeader || cell.isCorner) return;
+    const s = getCellStyleObj(cell);
+    if (!s || !s.shadow || s.shadow === 'none') return;
+    const ctx = e.ctx;
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+  }
+
   function handleRenderText(e) {
     const cell = e.cell;
     if (!cell) return;
@@ -134,6 +186,20 @@
       const colName = cell.header?.name;
       if (colName && columnRenderers[colName]) {
         e.preventDefault();
+        return;
+      }
+    }
+    // Apply cellStyle text overrides
+    if (cellStyle && !cell.isHeader && !cell.isRowHeader && !cell.isCorner) {
+      const s = getCellStyleObj(cell);
+      if (s) {
+        const ctx = e.ctx;
+        if (s.color) ctx.fillStyle = s.color;
+        if (s.font) {
+          ctx.font = s.font;
+        } else if (s.fontWeight) {
+          ctx.font = s.fontWeight + ' ' + ctx.font;
+        }
       }
     }
   }
@@ -259,12 +325,26 @@
       eventCleanups.push(() => grid.removeEventListener(eventName, handler));
     }
 
-    if (hasRenderers() || htmlHeaders) {
+    if (hasRenderers() || htmlHeaders || cellStyle) {
       grid.addEventListener('rendertext', handleRenderText);
-      grid.addEventListener('afterdraw', handleAfterDraw);
       rendererCleanups.push(
         () => grid.removeEventListener('rendertext', handleRenderText),
+      );
+    }
+
+    if (hasRenderers() || htmlHeaders) {
+      grid.addEventListener('afterdraw', handleAfterDraw);
+      rendererCleanups.push(
         () => grid.removeEventListener('afterdraw', handleAfterDraw),
+      );
+    }
+
+    if (cellStyle) {
+      grid.addEventListener('rendercell', handleRenderCell);
+      grid.addEventListener('afterrendercell', handleAfterRenderCell);
+      rendererCleanups.push(
+        () => grid.removeEventListener('rendercell', handleRenderCell),
+        () => grid.removeEventListener('afterrendercell', handleAfterRenderCell),
       );
     }
 
@@ -324,11 +404,17 @@
     if (!grid) return;
     rendererCleanups.forEach((fn) => fn());
     rendererCleanups = [];
-    if (hasRenderers() || htmlHeaders) {
+
+    if (hasRenderers() || htmlHeaders || cellStyle) {
       grid.addEventListener('rendertext', handleRenderText);
-      grid.addEventListener('afterdraw', handleAfterDraw);
       rendererCleanups.push(
         () => grid.removeEventListener('rendertext', handleRenderText),
+      );
+    }
+
+    if (hasRenderers() || htmlHeaders) {
+      grid.addEventListener('afterdraw', handleAfterDraw);
+      rendererCleanups.push(
         () => grid.removeEventListener('afterdraw', handleAfterDraw),
       );
       updateRendererOverlays();
@@ -336,6 +422,15 @@
     } else {
       renderedCells = [];
       renderedHeaders = [];
+    }
+
+    if (cellStyle) {
+      grid.addEventListener('rendercell', handleRenderCell);
+      grid.addEventListener('afterrendercell', handleAfterRenderCell);
+      rendererCleanups.push(
+        () => grid.removeEventListener('rendercell', handleRenderCell),
+        () => grid.removeEventListener('afterrendercell', handleAfterRenderCell),
+      );
     }
   });
 </script>

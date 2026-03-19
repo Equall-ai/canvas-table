@@ -14,6 +14,8 @@ export { default as CanvasDatagrid } from './CanvasDatagrid.svelte';
 /** @typedef {import('./types').ResizeEvent} ResizeEvent */
 /** @typedef {import('./types').DataChangedEvent} DataChangedEvent */
 /** @typedef {import('./types').SchemaChangedEvent} SchemaChangedEvent */
+/** @typedef {import('./types').CellStyle} CellStyle */
+/** @typedef {import('./types').CellStyleContext} CellStyleContext */
 /** @typedef {import('./types').HeaderRendererCell} HeaderRendererCell */
 /** @typedef {import('./types').GridEventHandlers} GridEventHandlers */
 /** @typedef {import('./types').GridAttributes} GridAttributes */

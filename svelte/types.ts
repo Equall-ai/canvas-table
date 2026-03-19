@@ -330,6 +330,42 @@ export interface GridAttributes {
   [key: string]: any;
 }
 
+// ─── Cell Style ──────────────────────────────────────────────────────────────
+
+/** Declarative style object returned by the cellStyle function. */
+export interface CellStyle {
+  /** Cell background color (CSS color string). */
+  backgroundColor?: string;
+  /** Text color (CSS color string). */
+  color?: string;
+  /** Full CSS font string (e.g. "bold 14px sans-serif"). Overrides fontWeight. */
+  font?: string;
+  /** Font weight (e.g. "bold", "600"). Applied as prefix to the existing font. */
+  fontWeight?: string;
+  /** Box shadow preset. */
+  shadow?: 'none' | 'sm' | 'md' | 'lg';
+  /** Cell border color (CSS color string). */
+  borderColor?: string;
+  /** Cell border width in pixels. */
+  borderWidth?: number;
+}
+
+/** Context object passed to the cellStyle function. */
+export interface CellStyleContext {
+  /** The cell's current value. */
+  value: any;
+  /** The full row data object. */
+  row: Record<string, any>;
+  /** Row index in the data array. */
+  rowIndex: number;
+  /** Column index. */
+  columnIndex: number;
+  /** Column name from the schema. */
+  colName: string;
+  /** The column schema definition. */
+  header: ColumnSchema;
+}
+
 // ─── Header Renderer Cell ────────────────────────────────────────────────────
 
 /** Cell data passed to column header renderer snippets. */
@@ -366,6 +402,8 @@ export interface CanvasDatagridProps extends GridAttributes, GridEventHandlers {
   style?: Record<string, any>;
   /** Map of column names to Svelte snippet renderers. */
   columnRenderers?: Record<string, Snippet<[RendererCell]>>;
+  /** Declarative cell styling function. Receives cell context, returns style overrides. */
+  cellStyle?: (context: CellStyleContext) => CellStyle | null | undefined;
   /** Render column headers as HTML DOM elements instead of canvas-drawn text. */
   htmlHeaders?: boolean;
   /** Map of column names to custom header renderer snippets (requires htmlHeaders). */
