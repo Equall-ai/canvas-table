@@ -74,6 +74,9 @@
   }
 
   function addRow() {
+    const grid = gridComponent?.getGrid();
+    const activeRow = grid?.activeCell?.rowIndex ?? 0;
+    const insertAt = activeRow + 1;
     const newId = Date.now();
     const newRow = {
       ID: newId,
@@ -87,7 +90,9 @@
       Role: 'Engineer',
       Salary: 75000,
     };
-    data = [newRow, ...data];
+    const newData = [...data];
+    newData.splice(insertAt, 0, newRow);
+    data = newData;
   }
 
   function deleteSelectedRows() {
