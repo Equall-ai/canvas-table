@@ -127,6 +127,22 @@
     }
   }
 
+  function getCellStyle({ colName, value }) {
+    if (colName === 'Salary') {
+      if (value >= 150000) return { backgroundColor: '#dcfce7', color: '#166534', fontWeight: 'bold' };
+      if (value >= 100000) return { backgroundColor: '#f0fdf4', color: '#15803d' };
+      if (value < 50000) return { backgroundColor: '#fef2f2', color: '#991b1b' };
+    }
+    if (colName === 'Rating') {
+      const n = parseFloat(value);
+      if (n >= 4) return { backgroundColor: '#dbeafe', color: '#1e40af', fontWeight: 'bold' };
+      if (n < 2) return { backgroundColor: '#fecaca', color: '#991b1b' };
+    }
+    if (colName === 'Age') {
+      if (value >= 60) return { color: '#9333ea', fontWeight: 'bold' };
+    }
+  }
+
   function updateStatus(cell, e) {
     const newValue = e.target.value;
     data[cell.rowIndex].Status = newValue;
@@ -195,6 +211,7 @@
       allowSorting={true}
       showFilter={true}
       animatedCellSelection={true}
+      cellStyle={getCellStyle}
       columnRenderers={{ Status: statusRenderer, Role: roleRenderer }}
       onclick={handleClick}
       onselectionchanged={handleSelectionChanged}
