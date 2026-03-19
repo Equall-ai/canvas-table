@@ -67,6 +67,7 @@
     htmlHeaders = false,
     columnHeaderRenderers = {},
     cellStyle = undefined,
+    animateRows = false,
     formatters = undefined,
     sorters = undefined,
     filters = undefined,
@@ -83,6 +84,98 @@
   let renderedCells = $state([]);
   let renderedHeaders = $state([]);
   let headerStyles = $state({});
+
+  // Row animation state
+  let prevIdSet = new Set();
+  let animatingRows = new Map(); // rowIndex -> { start, duration, direction }
+  let animFrameId = null;
+
+  function getAnimConfig() {
+    if (!animateRows) return null;
+    if (animateRows === true) return { duration: 200, key: 'id' };
+    return { duration: animateRows.duration || 200, key: animateRows.key || 'id' };
+  }
+
+  function animateInsertedRows(newData, oldIdSet) {
+    if (!grid) return;
+    const cfg = getAnimConfig();
+    if (!cfg) return;
+
+    const key = cfg.key;
+    const targetHeight = grid.style.cellHeight || 25;
+    const now = performance.now();
+
+    // Find new row indices
+    const newIndices = [];
+    for (let i = 0; i < newData.length; i++) {
+      const id = newData[i][key];
+      if (id != null && !oldIdSet.has(id)) {
+        newIndices.push(i);
+      }
+    }
+
+    // Find removed row indices (rows in old set but not new)
+    const newIdSet = new Set();
+    for (let i = 0; i < newData.length; i++) {
+      const id = newData[i][key];
+      if (id != null) newIdSet.add(id);
+    }
+
+    if (newIndices.length === 0) return;
+
+    // Clear any in-progress animations and their size overrides
+    for (const [idx] of animatingRows) {
+      delete grid.sizes.rows[idx];
+    }
+    animatingRows.clear();
+
+    // Set initial height to 0 for new rows
+    for (const idx of newIndices) {
+      grid.sizes.rows[idx] = 0.1;
+      animatingRows.set(idx, {
+        start: now,
+        duration: cfg.duration,
+        target: targetHeight,
+      });
+    }
+
+    // Start animation loop if not already running
+    if (!animFrameId) {
+      animFrameId = requestAnimationFrame(animationTick);
+    }
+  }
+
+  function animationTick(now) {
+    if (!grid || animatingRows.size === 0) {
+      animFrameId = null;
+      return;
+    }
+
+    let anyActive = false;
+    for (const [idx, anim] of animatingRows) {
+      const elapsed = now - anim.start;
+      const progress = Math.min(elapsed / anim.duration, 1);
+      // ease-out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const currentHeight = eased * anim.target;
+
+      if (progress >= 1) {
+        delete grid.sizes.rows[idx];
+        animatingRows.delete(idx);
+      } else {
+        grid.sizes.rows[idx] = currentHeight;
+        anyActive = true;
+      }
+    }
+
+    grid.draw();
+
+    if (anyActive) {
+      animFrameId = requestAnimationFrame(animationTick);
+    } else {
+      animFrameId = null;
+    }
+  }
 
   export function getGrid() {
     return grid;
@@ -355,6 +448,11 @@
       rendererCleanups = [];
       renderedCells = [];
       renderedHeaders = [];
+      if (animFrameId) {
+        cancelAnimationFrame(animFrameId);
+        animFrameId = null;
+      }
+      animatingRows.clear();
       if (grid && grid.dispose) {
         grid.dispose();
       }
@@ -363,7 +461,24 @@
 
   $effect(() => {
     if (grid && data) {
+      const cfg = getAnimConfig();
+      const oldIdSet = prevIdSet;
+
+      // Update the ID set before setting data
+      if (cfg) {
+        const newSet = new Set();
+        for (let i = 0; i < data.length; i++) {
+          const id = data[i][cfg.key];
+          if (id != null) newSet.add(id);
+        }
+        prevIdSet = newSet;
+      }
+
       grid.data = data;
+
+      if (cfg && oldIdSet.size > 0) {
+        animateInsertedRows(data, oldIdSet);
+      }
     }
   });
 

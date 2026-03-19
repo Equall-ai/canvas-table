@@ -74,11 +74,11 @@
   }
 
   function addRow() {
-    const newId = data.length + 1;
-    data = [...data, {
+    const newId = Date.now();
+    const newRow = {
       ID: newId,
-      Name: `New Person ${newId}`,
-      Email: `new${newId}@example.com`,
+      Name: `New Person`,
+      Email: `new@example.com`,
       Age: 25,
       City: 'New York',
       Country: 'USA',
@@ -86,7 +86,8 @@
       Company: 'New Co',
       Role: 'Engineer',
       Salary: 75000,
-    }];
+    };
+    data = [newRow, ...data];
   }
 
   function deleteSelectedRows() {
@@ -212,6 +213,7 @@
       showFilter={true}
       animatedCellSelection={true}
       cellStyle={getCellStyle}
+      animateRows={{ key: 'ID', duration: 250 }}
       columnRenderers={{ Status: statusRenderer, Role: roleRenderer }}
       onclick={handleClick}
       onselectionchanged={handleSelectionChanged}

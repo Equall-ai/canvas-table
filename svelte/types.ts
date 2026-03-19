@@ -404,6 +404,11 @@ export interface CanvasDatagridProps extends GridAttributes, GridEventHandlers {
   columnRenderers?: Record<string, Snippet<[RendererCell]>>;
   /** Declarative cell styling function. Receives cell context, returns style overrides. */
   cellStyle?: (context: CellStyleContext) => CellStyle | null | undefined;
+  /**
+   * Animate rows when data changes (insertions slide in).
+   * Pass `true` for defaults (200ms, key='id'), or an object for custom config.
+   */
+  animateRows?: boolean | { duration?: number; key?: string };
   /** Render column headers as HTML DOM elements instead of canvas-drawn text. */
   htmlHeaders?: boolean;
   /** Map of column names to custom header renderer snippets (requires htmlHeaders). */
