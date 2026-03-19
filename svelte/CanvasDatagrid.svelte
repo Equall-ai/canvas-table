@@ -123,10 +123,10 @@
   }
 
   const shadowPresets = {
-    none: { blur: 0, offsetX: 0, offsetY: 0, color: 'transparent' },
-    sm: { blur: 2, offsetX: 0, offsetY: 1, color: 'rgba(0,0,0,0.12)' },
-    md: { blur: 4, offsetX: 0, offsetY: 2, color: 'rgba(0,0,0,0.16)' },
-    lg: { blur: 8, offsetX: 0, offsetY: 4, color: 'rgba(0,0,0,0.2)' },
+    none: { height: 0, color: 'rgba(0,0,0,0)' },
+    sm: { height: 3, color: 'rgba(0,0,0,0.08)' },
+    md: { height: 6, color: 'rgba(0,0,0,0.12)' },
+    lg: { height: 10, color: 'rgba(0,0,0,0.18)' },
   };
 
   function getCellStyleObj(cell) {
@@ -151,13 +151,6 @@
     if (s.backgroundColor) ctx.fillStyle = s.backgroundColor;
     if (s.borderColor) ctx.strokeStyle = s.borderColor;
     if (s.borderWidth != null) ctx.lineWidth = s.borderWidth;
-    if (s.shadow && s.shadow !== 'none') {
-      const preset = shadowPresets[s.shadow] || shadowPresets.none;
-      ctx.shadowColor = preset.color;
-      ctx.shadowBlur = preset.blur;
-      ctx.shadowOffsetX = preset.offsetX;
-      ctx.shadowOffsetY = preset.offsetY;
-    }
   }
 
   function handleAfterRenderCell(e) {
@@ -166,11 +159,18 @@
     if (!cell || cell.isHeader || cell.isRowHeader || cell.isCorner) return;
     const s = getCellStyleObj(cell);
     if (!s || !s.shadow || s.shadow === 'none') return;
+    const preset = shadowPresets[s.shadow] || shadowPresets.none;
+    if (!preset.height) return;
     const ctx = e.ctx;
-    ctx.shadowColor = 'transparent';
-    ctx.shadowBlur = 0;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 0;
+    const scale = grid?.scale || 1;
+    const y = cell.offsetTop;
+    const x = cell.offsetLeft;
+    const h = preset.height * scale;
+    const grad = ctx.createLinearGradient(0, y, 0, y + h);
+    grad.addColorStop(0, preset.color);
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(x, y, cell.width, h);
   }
 
   function handleRenderText(e) {

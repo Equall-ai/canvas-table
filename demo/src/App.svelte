@@ -127,16 +127,16 @@
     }
   }
 
-  function getCellStyle({ colName, value }) {
+  function getCellStyle({ colName, value, row }) {
     if (colName === 'Salary') {
       if (value >= 150000) return { backgroundColor: '#dcfce7', color: '#166534', fontWeight: 'bold' };
       if (value >= 100000) return { backgroundColor: '#f0fdf4', color: '#15803d' };
-      if (value < 50000) return { backgroundColor: '#fef2f2', color: '#991b1b' };
+      if (value < 50000) return { backgroundColor: '#fef2f2', color: '#991b1b', shadow: 'sm' };
     }
     if (colName === 'Rating') {
       const n = parseFloat(value);
       if (n >= 4) return { backgroundColor: '#dbeafe', color: '#1e40af', fontWeight: 'bold' };
-      if (n < 2) return { backgroundColor: '#fecaca', color: '#991b1b' };
+      if (n < 2) return { backgroundColor: '#fecaca', color: '#991b1b', shadow: 'md' };
     }
     if (colName === 'Age') {
       if (value >= 60) return { color: '#9333ea', fontWeight: 'bold' };

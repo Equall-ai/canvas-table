@@ -342,7 +342,7 @@ export interface CellStyle {
   font?: string;
   /** Font weight (e.g. "bold", "600"). Applied as prefix to the existing font. */
   fontWeight?: string;
-  /** Box shadow preset. */
+  /** Inset top shadow preset. Creates depth effect where the row above appears to float over this cell. */
   shadow?: 'none' | 'sm' | 'md' | 'lg';
   /** Cell border color (CSS color string). */
   borderColor?: string;
