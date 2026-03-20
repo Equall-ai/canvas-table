@@ -467,6 +467,13 @@
     updateHeaderOverlays();
   }
 
+  function preventBackGesture(e) {
+    // Prevent horizontal scroll from triggering browser back/forward navigation
+    if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+      e.preventDefault();
+    }
+  }
+
   function forwardWheel(e) {
     if (!grid) return;
     const canvas = container.querySelector('canvas-datagrid')?.shadowRoot?.querySelector('canvas')
@@ -484,6 +491,9 @@
 
     grid.style.height = '100%';
     grid.style.width = '100%';
+
+    // Prevent horizontal scroll from triggering browser back/forward gesture
+    container.addEventListener('wheel', preventBackGesture, { passive: false });
 
     for (const [eventName, handler] of Object.entries(events)) {
       grid.addEventListener(eventName, handler);
@@ -525,6 +535,7 @@
         animFrameId = null;
       }
       animatingRows.clear();
+      container?.removeEventListener('wheel', preventBackGesture);
       if (grid && grid.dispose) {
         grid.dispose();
       }
@@ -669,6 +680,8 @@
     width: 100%;
     height: 100%;
     position: relative;
+    overscroll-behavior-x: none;
+    touch-action: none;
   }
 
   .cdg-renderer-overlay {
