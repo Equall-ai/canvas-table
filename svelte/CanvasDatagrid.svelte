@@ -603,7 +603,13 @@
     if (!grid) return;
     const { attrs } = partitionProps(restProps);
     for (const [k, v] of Object.entries(attrs)) {
-      grid.attributes[k] = v;
+      // Some properties (frozenColumn, frozenRow) are top-level grid
+      // properties, not attributes. Check the grid interface first.
+      if (k in grid) {
+        grid[k] = v;
+      } else {
+        grid.attributes[k] = v;
+      }
     }
   });
 
