@@ -498,9 +498,8 @@
     // Resize grid when container size changes.
     // Dispatch a synthetic window resize event so the grid's own
     // resize handler runs through the same path as a real window resize.
-    let resizeSkipFirst = true;
     const resizeObserver = new ResizeObserver(() => {
-      if (resizeSkipFirst) { resizeSkipFirst = false; return; }
+      if (!grid) return;
       window.dispatchEvent(new Event('resize'));
     });
     resizeObserver.observe(container);
@@ -691,6 +690,7 @@
     width: 100%;
     height: 100%;
     position: relative;
+    overflow: hidden;
     overscroll-behavior-x: none;
     touch-action: none;
   }
