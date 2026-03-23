@@ -495,6 +495,11 @@
     // Prevent horizontal scroll from triggering browser back/forward gesture
     container.addEventListener('wheel', preventBackGesture, { passive: false });
 
+    // Suppress the default context menu
+    container.addEventListener('contextmenu', function (e) {
+      e.preventDefault();
+    });
+
 
     for (const [eventName, handler] of Object.entries(events)) {
       grid.addEventListener(eventName, handler);
