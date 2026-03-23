@@ -496,14 +496,19 @@
     container.addEventListener('wheel', preventBackGesture, { passive: false });
 
     // Resize grid when container size changes.
-    // Dispatch a synthetic window resize event so the grid's own
-    // resize handler runs through the same path as a real window resize.
+    // The RAF ensures layout has settled before triggering the grid's resize.
+    let resizeRafId = null;
     const resizeObserver = new ResizeObserver(() => {
-      if (!grid) return;
-      window.dispatchEvent(new Event('resize'));
+      if (resizeRafId) cancelAnimationFrame(resizeRafId);
+      resizeRafId = requestAnimationFrame(() => {
+        if (grid) window.dispatchEvent(new Event('resize'));
+      });
     });
     resizeObserver.observe(container);
-    eventCleanups.push(() => resizeObserver.disconnect());
+    eventCleanups.push(() => {
+      resizeObserver.disconnect();
+      if (resizeRafId) cancelAnimationFrame(resizeRafId);
+    });
 
     for (const [eventName, handler] of Object.entries(events)) {
       grid.addEventListener(eventName, handler);
