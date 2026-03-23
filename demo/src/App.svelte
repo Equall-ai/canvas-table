@@ -313,6 +313,12 @@
   .grid-container {
     flex: 1;
     overflow: hidden;
+    resize: both;
+    min-height: 200px;
+    min-width: 300px;
+    border: 2px dashed #ccc;
+    margin: 0.5rem;
+    border-radius: 4px;
   }
 
   :global(.status-pill) {
