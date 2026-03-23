@@ -495,12 +495,27 @@
     // Prevent horizontal scroll from triggering browser back/forward gesture
     container.addEventListener('wheel', preventBackGesture, { passive: false });
 
+    // Ensure the canvas element fills the container
+    const canvasEl = container.querySelector('canvas');
+    if (canvasEl) {
+      canvasEl.style.width = '100%';
+      canvasEl.style.height = '100%';
+    }
+
     // Resize grid when container size changes
+    let resizeRafId = null;
     const resizeObserver = new ResizeObserver(() => {
-      if (grid) grid.resize(true);
+      if (resizeRafId) cancelAnimationFrame(resizeRafId);
+      resizeRafId = requestAnimationFrame(() => {
+        if (!grid) return;
+        grid.resize(true);
+      });
     });
     resizeObserver.observe(container);
-    eventCleanups.push(() => resizeObserver.disconnect());
+    eventCleanups.push(() => {
+      resizeObserver.disconnect();
+      if (resizeRafId) cancelAnimationFrame(resizeRafId);
+    });
 
     for (const [eventName, handler] of Object.entries(events)) {
       grid.addEventListener(eventName, handler);
