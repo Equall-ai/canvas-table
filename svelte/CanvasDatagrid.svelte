@@ -495,19 +495,21 @@
     // Prevent horizontal scroll from triggering browser back/forward gesture
     container.addEventListener('wheel', preventBackGesture, { passive: false });
 
-    // Ensure the canvas element fills the container
+    // Resize grid when container size changes.
+    // The canvas element has display:block but no CSS width/height,
+    // so we must set explicit pixel sizes on it to match the container
+    // before calling grid.resize(). This avoids the stretching caused
+    // by CSS percentage sizing on canvas elements.
     const canvasEl = container.querySelector('canvas');
-    if (canvasEl) {
-      canvasEl.style.width = '100%';
-      canvasEl.style.height = '100%';
-    }
-
-    // Resize grid when container size changes
     let resizeRafId = null;
     const resizeObserver = new ResizeObserver(() => {
       if (resizeRafId) cancelAnimationFrame(resizeRafId);
       resizeRafId = requestAnimationFrame(() => {
-        if (!grid) return;
+        if (!grid || !canvasEl) return;
+        const w = container.clientWidth;
+        const h = container.clientHeight;
+        canvasEl.style.width = w + 'px';
+        canvasEl.style.height = h + 'px';
         grid.resize(true);
       });
     });
