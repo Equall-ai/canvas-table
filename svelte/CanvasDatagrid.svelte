@@ -495,21 +495,6 @@
     // Prevent horizontal scroll from triggering browser back/forward gesture
     container.addEventListener('wheel', preventBackGesture, { passive: false });
 
-    // Resize grid when container size changes.
-    // Defer observer setup to next frame so the canvas is fully laid out
-    // before we start watching — otherwise the initial observation fires
-    // with stale dimensions and the observer may not detect changes.
-    let resizeObserver = null;
-    const resizeSetupId = requestAnimationFrame(() => {
-      resizeObserver = new ResizeObserver(() => {
-        if (grid) window.dispatchEvent(new Event('resize'));
-      });
-      resizeObserver.observe(container);
-    });
-    eventCleanups.push(() => {
-      cancelAnimationFrame(resizeSetupId);
-      resizeObserver?.disconnect();
-    });
 
     for (const [eventName, handler] of Object.entries(events)) {
       grid.addEventListener(eventName, handler);
@@ -653,6 +638,17 @@
         () => grid.removeEventListener('afterrendercell', handleAfterRenderCell),
       );
     }
+  });
+
+  // Resize grid when container size changes.
+  // Uses $effect so the observer is set up after the grid is fully initialized.
+  $effect(() => {
+    if (!grid || !container) return;
+    const resizeObserver = new ResizeObserver(() => {
+      window.dispatchEvent(new Event('resize'));
+    });
+    resizeObserver.observe(container);
+    return () => resizeObserver.disconnect();
   });
 </script>
 
