@@ -496,18 +496,19 @@
     container.addEventListener('wheel', preventBackGesture, { passive: false });
 
     // Resize grid when container size changes.
-    // The RAF ensures layout has settled before triggering the grid's resize.
-    let resizeRafId = null;
-    const resizeObserver = new ResizeObserver(() => {
-      if (resizeRafId) cancelAnimationFrame(resizeRafId);
-      resizeRafId = requestAnimationFrame(() => {
+    // Defer observer setup to next frame so the canvas is fully laid out
+    // before we start watching — otherwise the initial observation fires
+    // with stale dimensions and the observer may not detect changes.
+    let resizeObserver = null;
+    const resizeSetupId = requestAnimationFrame(() => {
+      resizeObserver = new ResizeObserver(() => {
         if (grid) window.dispatchEvent(new Event('resize'));
       });
+      resizeObserver.observe(container);
     });
-    resizeObserver.observe(container);
     eventCleanups.push(() => {
-      resizeObserver.disconnect();
-      if (resizeRafId) cancelAnimationFrame(resizeRafId);
+      cancelAnimationFrame(resizeSetupId);
+      resizeObserver?.disconnect();
     });
 
     for (const [eventName, handler] of Object.entries(events)) {
