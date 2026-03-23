@@ -495,6 +495,13 @@
     // Prevent horizontal scroll from triggering browser back/forward gesture
     container.addEventListener('wheel', preventBackGesture, { passive: false });
 
+    // Resize grid when container size changes
+    const resizeObserver = new ResizeObserver(() => {
+      if (grid) grid.resize(true);
+    });
+    resizeObserver.observe(container);
+    eventCleanups.push(() => resizeObserver.disconnect());
+
     for (const [eventName, handler] of Object.entries(events)) {
       grid.addEventListener(eventName, handler);
       eventCleanups.push(() => grid.removeEventListener(eventName, handler));
