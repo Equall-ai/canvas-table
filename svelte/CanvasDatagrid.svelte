@@ -496,28 +496,15 @@
     container.addEventListener('wheel', preventBackGesture, { passive: false });
 
     // Resize grid when container size changes.
-    // The canvas element has display:block but no CSS width/height,
-    // so we must set explicit pixel sizes on it to match the container
-    // before calling grid.resize(). This avoids the stretching caused
-    // by CSS percentage sizing on canvas elements.
-    const canvasEl = container.querySelector('canvas');
-    let resizeRafId = null;
+    // Dispatch a synthetic window resize event so the grid's own
+    // resize handler runs through the same path as a real window resize.
+    let resizeSkipFirst = true;
     const resizeObserver = new ResizeObserver(() => {
-      if (resizeRafId) cancelAnimationFrame(resizeRafId);
-      resizeRafId = requestAnimationFrame(() => {
-        if (!grid || !canvasEl) return;
-        const w = container.clientWidth;
-        const h = container.clientHeight;
-        canvasEl.style.width = w + 'px';
-        canvasEl.style.height = h + 'px';
-        grid.resize(true);
-      });
+      if (resizeSkipFirst) { resizeSkipFirst = false; return; }
+      window.dispatchEvent(new Event('resize'));
     });
     resizeObserver.observe(container);
-    eventCleanups.push(() => {
-      resizeObserver.disconnect();
-      if (resizeRafId) cancelAnimationFrame(resizeRafId);
-    });
+    eventCleanups.push(() => resizeObserver.disconnect());
 
     for (const [eventName, handler] of Object.entries(events)) {
       grid.addEventListener(eventName, handler);
