@@ -438,12 +438,19 @@
       return;
     }
     const scale = grid.scale || 1;
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
     const newCells = [];
     for (let i = 0; i < cells.length; i++) {
       const cell = cells[i];
       if (cell.isHeader || cell.isRowHeader || cell.isCorner) continue;
       const colName = cell.header?.name;
       if (colName && columnRenderers[colName]) {
+        const left = cell.x / scale;
+        const top = cell.y / scale;
+        const clippedWidth = Math.min(cell.width / scale, containerWidth - left);
+        const clippedHeight = Math.min(cell.height / scale, containerHeight - top);
+        if (clippedWidth <= 0 || clippedHeight <= 0) continue;
         newCells.push({
           key: cell.rowIndex + ':' + cell.columnIndex,
           colName,
@@ -452,10 +459,10 @@
           row: cell.data,
           rowIndex: cell.rowIndex,
           columnIndex: cell.columnIndex,
-          left: cell.x / scale,
-          top: cell.y / scale,
-          width: cell.width / scale,
-          height: cell.height / scale,
+          left,
+          top,
+          width: clippedWidth,
+          height: clippedHeight,
         });
       }
     }
