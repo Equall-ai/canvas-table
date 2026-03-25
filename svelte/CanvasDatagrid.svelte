@@ -675,6 +675,8 @@
       );
       updateRendererOverlays();
       updateHeaderOverlays();
+      updateTestOverlays();
+      if (testMode) grid.draw();
     } else {
       renderedCells = [];
       renderedHeaders = [];
