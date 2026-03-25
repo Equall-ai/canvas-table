@@ -33,11 +33,16 @@ npm install @equall/canvas-table
 | `schema` | `Array<object>` | Column definitions (`{ name, type, width }`) (bindable) |
 | `style` | `object` | Grid style overrides (see [style properties](#style-properties)) |
 | `columnRenderers` | `object` | Map of column names to Svelte snippets |
+| `cellStyle` | `function` | Declarative cell styling — `(context) => CellStyle \| null` |
+| `animateRows` | `boolean \| object` | Animate row insert/remove — `true` or `{ duration, key }` |
+| `htmlHeaders` | `boolean` | Render column headers as HTML DOM elements |
+| `columnHeaderRenderers` | `object` | Map of column names to header Svelte snippets (requires `htmlHeaders`) |
+| `testMode` | `boolean` | Render transparent DOM elements over cells for e2e testing |
 | `formatters` | `object` | Custom cell formatters |
 | `sorters` | `object` | Custom sort functions |
 | `filters` | `object` | Custom filter functions |
 | `on*` | `function` | Any `on`-prefixed prop is forwarded as a grid event listener |
-| *any other* | `any` | Passed as a grid attribute (e.g. `editable`, `allowSorting`) |
+| *any other* | `any` | Passed as a grid attribute or property (e.g. `editable`, `frozenColumn`) |
 
 ### Events
 
@@ -159,6 +164,90 @@ Each snippet receives a cell object with:
 | `formattedValue` | `string` | Formatted display value |
 
 Renderer overlays are positioned absolutely over the canvas cells, updated on every draw cycle, and automatically recycled as rows scroll in and out of view.
+
+### Cell Style
+
+Apply declarative styles to cells without writing `rendercell` handlers:
+
+```svelte
+<CanvasDatagrid
+  {data}
+  cellStyle={({ colName, value }) => {
+    if (colName === 'Salary' && value >= 150000)
+      return { backgroundColor: '#dcfce7', color: '#166534', fontWeight: 'bold' };
+    if (colName === 'Rating' && parseFloat(value) < 2)
+      return { backgroundColor: '#fecaca', color: '#991b1b', shadow: 'md' };
+  }}
+/>
+```
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `backgroundColor` | `string` | Cell background color |
+| `color` | `string` | Text color |
+| `font` | `string` | Full CSS font string (e.g. `"bold 14px sans-serif"`) |
+| `fontWeight` | `string` | Font weight (e.g. `"bold"`) — applied as prefix to existing font |
+| `shadow` | `'none' \| 'sm' \| 'md' \| 'lg'` | Inset top shadow for row depth effect |
+| `borderColor` | `string` | Cell border color |
+| `borderWidth` | `number` | Cell border width in pixels |
+
+### Animated Row Transitions
+
+Animate row insertions and removals when data changes:
+
+```svelte
+<CanvasDatagrid
+  {data}
+  animateRows={{ key: 'id', duration: 250 }}
+/>
+```
+
+Rows are identified by a unique key field. New rows slide in (height 0 → full), removed rows collapse out (full → 0). Pass `true` for defaults (200ms, key `'id'`).
+
+### HTML Headers
+
+Render column headers as HTML DOM elements instead of canvas text:
+
+```svelte
+<CanvasDatagrid {data} htmlHeaders />
+```
+
+Headers match the canvas header styling by default and support click-to-sort. For custom header content, use `columnHeaderRenderers`:
+
+```svelte
+{#snippet nameHeader(header)}
+  <span>📛 {header.title} {header.sortDirection === 'asc' ? '▲' : '▼'}</span>
+{/snippet}
+
+<CanvasDatagrid {data} htmlHeaders columnHeaderRenderers={{ Name: nameHeader }} />
+```
+
+### Test Mode (E2E Testing)
+
+Renders transparent DOM elements over each visible cell for e2e test frameworks:
+
+```svelte
+<CanvasDatagrid {data} testMode={true} />
+```
+
+Each cell gets a positioned `<div>` with data attributes:
+
+| Attribute | Example | Description |
+|-----------|---------|-------------|
+| `data-testid` | `cell-0-2`, `header-Name` | Unique test selector |
+| `data-row` | `0` | Row index |
+| `data-col` | `2` | Column index |
+| `data-column` | `Name` | Column name |
+| `data-value` | `Alice` | Cell value as string |
+| `data-header` | `true` | Present on column header cells |
+
+```js
+// Playwright examples
+await page.click('[data-testid="cell-0-2"]');
+await page.click('[data-testid="header-Name"]');
+const value = await page.getAttribute('[data-testid="cell-3-1"]', 'data-value');
+await page.locator('[data-column="Status"]').count();
+```
 
 ### Keyboard Shortcuts
 
