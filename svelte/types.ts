@@ -409,6 +409,12 @@ export interface CanvasDatagridProps extends GridAttributes, GridEventHandlers {
    * Pass `true` for defaults (200ms, key='id'), or an object for custom config.
    */
   animateRows?: boolean | { duration?: number; key?: string };
+  /**
+   * Enable DOM testing mode. Renders transparent DOM elements over each
+   * visible cell with data attributes for e2e test selectors:
+   * data-testid, data-row, data-col, data-column, data-value, data-header
+   */
+  testMode?: boolean;
   /** Render column headers as HTML DOM elements instead of canvas-drawn text. */
   htmlHeaders?: boolean;
   /** Map of column names to custom header renderer snippets (requires htmlHeaders). */

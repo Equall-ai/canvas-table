@@ -68,6 +68,7 @@
     columnHeaderRenderers = {},
     cellStyle = undefined,
     animateRows = false,
+    testMode = false,
     formatters = undefined,
     sorters = undefined,
     filters = undefined,
@@ -84,6 +85,7 @@
   let renderedCells = $state([]);
   let renderedHeaders = $state([]);
   let headerStyles = $state({});
+  let testCells = $state([]);
 
   // Row animation state
   let prevIdSet = new Set();
@@ -469,9 +471,39 @@
     renderedCells = newCells;
   }
 
+  function updateTestOverlays() {
+    if (!grid || !testMode) {
+      testCells = [];
+      return;
+    }
+    const cells = grid.visibleCells;
+    if (!cells) { testCells = []; return; }
+    const scale = grid.scale || 1;
+    const newTestCells = [];
+    for (let i = 0; i < cells.length; i++) {
+      const cell = cells[i];
+      if (cell.isCorner) continue;
+      newTestCells.push({
+        key: (cell.isColumnHeader ? 'h' : cell.isRowHeader ? 'rh' : 'c') + ':' + cell.rowIndex + ':' + cell.columnIndex,
+        left: cell.x / scale,
+        top: cell.y / scale,
+        width: cell.width / scale,
+        height: cell.height / scale,
+        rowIndex: cell.rowIndex,
+        columnIndex: cell.columnIndex,
+        colName: cell.header?.name || '',
+        value: cell.value != null ? String(cell.value) : '',
+        isHeader: cell.isColumnHeader || false,
+        isRowHeader: cell.isRowHeader || false,
+      });
+    }
+    testCells = newTestCells;
+  }
+
   function handleAfterDraw() {
     updateRendererOverlays();
     updateHeaderOverlays();
+    updateTestOverlays();
   }
 
   function preventBackGesture(e) {
@@ -520,7 +552,7 @@
       );
     }
 
-    if (hasRenderers() || htmlHeaders) {
+    if (hasRenderers() || htmlHeaders || testMode) {
       grid.addEventListener('afterdraw', handleAfterDraw);
       rendererCleanups.push(
         () => grid.removeEventListener('afterdraw', handleAfterDraw),
@@ -636,7 +668,7 @@
       );
     }
 
-    if (hasRenderers() || htmlHeaders) {
+    if (hasRenderers() || htmlHeaders || testMode) {
       grid.addEventListener('afterdraw', handleAfterDraw);
       rendererCleanups.push(
         () => grid.removeEventListener('afterdraw', handleAfterDraw),
@@ -700,6 +732,23 @@
             {/if}
           {/if}
         </button>
+      {/each}
+    </div>
+  {/if}
+  {#if testCells.length > 0}
+    <div class="cdg-test-overlay">
+      {#each testCells as cell (cell.key)}
+        <div
+          class="cdg-test-cell"
+          data-testid={cell.isHeader ? `header-${cell.colName}` : `cell-${cell.rowIndex}-${cell.columnIndex}`}
+          data-row={cell.rowIndex}
+          data-col={cell.columnIndex}
+          data-column={cell.colName}
+          data-value={cell.value}
+          data-header={cell.isHeader || undefined}
+          data-row-header={cell.isRowHeader || undefined}
+          style="left:{cell.left}px;top:{cell.top}px;width:{cell.width}px;height:{cell.height}px;"
+        ></div>
       {/each}
     </div>
   {/if}
@@ -774,5 +823,23 @@
     margin-left: 4px;
     font-size: 0.7em;
     opacity: 0.6;
+  }
+
+  .cdg-test-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+  }
+
+  .cdg-test-cell {
+    position: absolute;
+    pointer-events: auto;
+    background: transparent;
+    box-sizing: border-box;
   }
 </style>
