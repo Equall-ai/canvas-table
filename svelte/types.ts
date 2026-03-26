@@ -415,11 +415,10 @@ export interface CanvasDatagridProps extends GridAttributes, GridEventHandlers {
    * data-testid, data-row, data-col, data-column, data-value, data-header
    */
   testMode?: boolean;
-  /**
-   * Fill remaining visible space with empty padding rows.
-   * Pass `true` for 10 overflow rows, or a number for custom overflow count.
-   */
-  paddingRows?: boolean | number;
+  /** Fill the container height with empty rows when data doesn't fill it. */
+  fillHeight?: boolean;
+  /** Always append this many extra empty rows after the data (even if data exceeds container). */
+  extraRows?: number;
   /** Render column headers as HTML DOM elements instead of canvas-drawn text. */
   htmlHeaders?: boolean;
   /** Map of column names to custom header renderer snippets (requires htmlHeaders). */

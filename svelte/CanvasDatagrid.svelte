@@ -69,7 +69,8 @@
     cellStyle = undefined,
     animateRows = false,
     testMode = false,
-    paddingRows = false,
+    fillHeight = false,
+    extraRows = 0,
     formatters = undefined,
     sorters = undefined,
     filters = undefined,
@@ -253,25 +254,28 @@
   }
 
   function buildPaddedData(realData) {
-    if (!paddingRows || !grid || !container) return realData;
-    const cellHeight = grid.style.cellHeight || 24;
-    const headerHeight = grid.style.columnHeaderCellHeight || 25;
-    const containerHeight = container.clientHeight;
-    const visibleRows = Math.ceil((containerHeight - headerHeight) / cellHeight);
-    const overflow = typeof paddingRows === 'number' ? paddingRows : 10;
-    const targetRows = visibleRows + overflow;
-    if (realData.length >= targetRows) return realData;
+    if ((!fillHeight && !extraRows) || !grid || !container) return realData;
 
     const emptyRow = {};
     if (schema) {
-      for (const col of schema) {
-        emptyRow[col.name] = '';
-      }
+      for (const col of schema) emptyRow[col.name] = '';
     } else if (realData.length > 0) {
-      for (const key of Object.keys(realData[0])) {
-        emptyRow[key] = '';
-      }
+      for (const key of Object.keys(realData[0])) emptyRow[key] = '';
     }
+
+    let targetRows = realData.length;
+
+    if (fillHeight) {
+      const cellHeight = grid.style.cellHeight || 24;
+      const headerHeight = grid.style.columnHeaderCellHeight || 25;
+      const containerHeight = container.clientHeight;
+      const visibleRows = Math.ceil((containerHeight - headerHeight) / cellHeight);
+      targetRows = Math.max(targetRows, visibleRows);
+    }
+
+    targetRows += extraRows || 0;
+
+    if (realData.length >= targetRows) return realData;
 
     const padded = [...realData];
     for (let i = realData.length; i < targetRows; i++) {
@@ -727,7 +731,7 @@
     if (!grid || !container) return;
     const resizeObserver = new ResizeObserver(() => {
       window.dispatchEvent(new Event('resize'));
-      if (paddingRows && data) {
+      if ((fillHeight || extraRows) && data) {
         grid.data = buildPaddedData(data);
       }
     });
