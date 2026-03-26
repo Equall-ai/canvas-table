@@ -69,6 +69,7 @@
     cellStyle = undefined,
     animateRows = false,
     testMode = false,
+    paddingRows = false,
     formatters = undefined,
     sorters = undefined,
     filters = undefined,
@@ -246,9 +247,37 @@
       const finalData = pendingRemovalData;
       pendingRemovalData = null;
       skipNextAnimCheck = true;
-      grid.data = finalData;
+      grid.data = buildPaddedData(finalData);
       grid.draw();
     }
+  }
+
+  function buildPaddedData(realData) {
+    if (!paddingRows || !grid || !container) return realData;
+    const cellHeight = grid.style.cellHeight || 24;
+    const headerHeight = grid.style.columnHeaderCellHeight || 25;
+    const containerHeight = container.clientHeight;
+    const visibleRows = Math.ceil((containerHeight - headerHeight) / cellHeight);
+    const overflow = typeof paddingRows === 'number' ? paddingRows : 10;
+    const targetRows = visibleRows + overflow;
+    if (realData.length >= targetRows) return realData;
+
+    const emptyRow = {};
+    if (schema) {
+      for (const col of schema) {
+        emptyRow[col.name] = '';
+      }
+    } else if (realData.length > 0) {
+      for (const key of Object.keys(realData[0])) {
+        emptyRow[key] = '';
+      }
+    }
+
+    const padded = [...realData];
+    for (let i = realData.length; i < targetRows; i++) {
+      padded.push({ ...emptyRow, __paddingRow: true });
+    }
+    return padded;
   }
 
   export function getGrid() {
@@ -609,7 +638,7 @@
         return;
       }
 
-      grid.data = data;
+      grid.data = buildPaddedData(data);
 
       if (cfg && oldIdSet.size > 0) {
         animateDataChange(data, oldIdSet, oldDataArr);
@@ -698,6 +727,9 @@
     if (!grid || !container) return;
     const resizeObserver = new ResizeObserver(() => {
       window.dispatchEvent(new Event('resize'));
+      if (paddingRows && data) {
+        grid.data = buildPaddedData(data);
+      }
     });
     resizeObserver.observe(container);
     return () => resizeObserver.disconnect();
