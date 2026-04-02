@@ -515,7 +515,7 @@
     const newTestCells = [];
     for (let i = 0; i < cells.length; i++) {
       const cell = cells[i];
-      if (cell.isCorner) continue;
+      if (cell.isCorner || cell.rowIndex === undefined || cell.columnIndex === undefined) continue;
       newTestCells.push({
         key: (cell.isColumnHeader ? 'h' : cell.isRowHeader ? 'rh' : 'c') + ':' + cell.rowIndex + ':' + cell.columnIndex,
         left: cell.x / scale,
@@ -774,11 +774,11 @@
     </div>
   {/if}
   {#if testCells.length > 0}
-    <div class="cdg-test-overlay">
+    <div class="cdg-test-overlay" onwheel={forwardWheel}>
       {#each testCells as cell (cell.key)}
         <div
           class="cdg-test-cell"
-          data-testid={cell.isHeader ? `header-${cell.colName}` : `cell-${cell.rowIndex}-${cell.columnIndex}`}
+          data-testid={cell.isHeader ? `header-${cell.colName}` : cell.isRowHeader ? `row-header-${cell.rowIndex}` : `cell-${cell.rowIndex}-${cell.columnIndex}`}
           data-row={cell.rowIndex}
           data-col={cell.columnIndex}
           data-column={cell.colName}
@@ -786,7 +786,7 @@
           data-header={cell.isHeader || undefined}
           data-row-header={cell.isRowHeader || undefined}
           style="left:{cell.left}px;top:{cell.top}px;width:{cell.width}px;height:{cell.height}px;"
-        ></div>
+        >{cell.value}</div>
       {/each}
     </div>
   {/if}
@@ -870,14 +870,17 @@
     width: 100%;
     height: 100%;
     pointer-events: none;
-    z-index: 0;
+    z-index: 3;
     overflow: hidden;
   }
 
   .cdg-test-cell {
     position: absolute;
-    pointer-events: auto;
+    pointer-events: none;
     background: transparent;
+    color: transparent;
     box-sizing: border-box;
+    overflow: hidden;
+    font-size: 0;
   }
 </style>
