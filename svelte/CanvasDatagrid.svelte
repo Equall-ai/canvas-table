@@ -457,6 +457,7 @@
         width: cell.width / scale,
         height: cell.height / scale,
         sortDirection: grid.orderBy === colName ? grid.orderDirection : null,
+        frozen: grid.frozenColumn > 0 && cell.columnIndex < grid.frozenColumn,
       });
     }
     headerStyles = getHeaderStyles();
@@ -509,6 +510,7 @@
           top,
           width: clippedWidth,
           height: clippedHeight,
+          frozen: grid.frozenColumn > 0 && cell.columnIndex < grid.frozenColumn,
         });
       }
     }
@@ -808,7 +810,7 @@
       {#each renderedCells as cell (cell.key)}
         <div
           class="cdg-renderer-cell"
-          style="left:{cell.left}px;top:{cell.top}px;width:{cell.width}px;height:{cell.height}px;"
+          style="left:{cell.left}px;top:{cell.top}px;width:{cell.width}px;height:{cell.height}px;{cell.frozen ? 'z-index:1;' : ''}"
         >
           {@render columnRenderers[cell.colName](cell)}
         </div>
@@ -820,7 +822,7 @@
       {#each renderedHeaders as header (header.key)}
         <button
           class="cdg-header-cell"
-          style="left:{header.left}px;top:{header.top}px;width:{header.width}px;height:{header.height}px;background:{headerStyles.backgroundColor};color:{headerStyles.color};font:{headerStyles.font};text-align:{headerStyles.textAlign};padding:{headerStyles.paddingTop} {headerStyles.paddingRight} {headerStyles.paddingBottom} {headerStyles.paddingLeft};border:none;border-right:{headerStyles.borderWidth} solid {headerStyles.borderColor};border-bottom:{headerStyles.borderWidth} solid {headerStyles.borderColor};"
+          style="left:{header.left}px;top:{header.top}px;width:{header.width}px;height:{header.height}px;background:{headerStyles.backgroundColor};color:{headerStyles.color};font:{headerStyles.font};text-align:{headerStyles.textAlign};padding:{headerStyles.paddingTop} {headerStyles.paddingRight} {headerStyles.paddingBottom} {headerStyles.paddingLeft};border:none;border-right:{headerStyles.borderWidth} solid {headerStyles.borderColor};border-bottom:{headerStyles.borderWidth} solid {headerStyles.borderColor};{header.frozen ? 'z-index:1;' : ''}"
           onclick={() => handleHeaderClick(header)}
         >
           {#if columnHeaderRenderers[header.colName]}
