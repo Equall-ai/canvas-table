@@ -90,6 +90,7 @@
   let renderedHeaders = $state([]);
   let headerStyles = $state({});
   let testCells = $state([]);
+  let frozenColumnPixel = $state(0);
 
   // Row animation state
   let prevIdSet = new Set();
@@ -478,18 +479,22 @@
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
     const newCells = [];
+    const seen = new Set();
     for (let i = 0; i < cells.length; i++) {
       const cell = cells[i];
       if (cell.isHeader || cell.isRowHeader || cell.isCorner) continue;
       const colName = cell.header?.name;
       if (colName && columnRenderers[colName]) {
+        const cellKey = cell.rowIndex + ':' + cell.columnIndex;
+        if (seen.has(cellKey)) continue;
+        seen.add(cellKey);
         const left = cell.x / scale;
         const top = cell.y / scale;
         const clippedWidth = Math.min(cell.width / scale, containerWidth - left);
         const clippedHeight = Math.min(cell.height / scale, containerHeight - top);
         if (clippedWidth <= 0 || clippedHeight <= 0) continue;
         newCells.push({
-          key: cell.rowIndex + ':' + cell.columnIndex,
+          key: cellKey,
           colName,
           value: cell.value,
           formattedValue: cell.formattedValue,
@@ -515,11 +520,15 @@
     if (!cells) { testCells = []; return; }
     const scale = grid.scale || 1;
     const newTestCells = [];
+    const seenTest = new Set();
     for (let i = 0; i < cells.length; i++) {
       const cell = cells[i];
       if (cell.isCorner || cell.rowIndex === undefined || cell.columnIndex === undefined) continue;
+      const testKey = (cell.isColumnHeader ? 'h' : cell.isRowHeader ? 'rh' : 'c') + ':' + cell.rowIndex + ':' + cell.columnIndex;
+      if (seenTest.has(testKey)) continue;
+      seenTest.add(testKey);
       newTestCells.push({
-        key: (cell.isColumnHeader ? 'h' : cell.isRowHeader ? 'rh' : 'c') + ':' + cell.rowIndex + ':' + cell.columnIndex,
+        key: testKey,
         left: cell.x / scale,
         top: cell.y / scale,
         width: cell.width / scale,
@@ -540,6 +549,24 @@
       updateRendererOverlays();
       updateHeaderOverlays();
       updateTestOverlays();
+      if (grid && grid.frozenColumn > 0) {
+        const scale = grid.scale || 1;
+        const cells = grid.visibleCells;
+        let maxRight = 0;
+        if (cells) {
+          for (let i = 0; i < cells.length; i++) {
+            const c = cells[i];
+            if (!c.isHeader && !c.isRowHeader && !c.isCorner
+                && c.columnIndex !== undefined && c.columnIndex < grid.frozenColumn) {
+              const right = (c.x + c.width) / scale;
+              if (right > maxRight) maxRight = right;
+            }
+          }
+        }
+        frozenColumnPixel = maxRight;
+      } else {
+        frozenColumnPixel = 0;
+      }
     });
   }
 
@@ -816,6 +843,9 @@
       {/each}
     </div>
   {/if}
+  {#if frozenColumnPixel > 0}
+    <div class="cdg-frozen-shadow" style="left:{frozenColumnPixel}px;"></div>
+  {/if}
 </div>
 
 <style>
@@ -908,5 +938,15 @@
     box-sizing: border-box;
     overflow: hidden;
     font-size: 0;
+  }
+
+  .cdg-frozen-shadow {
+    position: absolute;
+    top: 0;
+    width: 6px;
+    height: 100%;
+    pointer-events: none;
+    z-index: 3;
+    background: linear-gradient(to right, rgba(0, 0, 0, 0.06), transparent);
   }
 </style>
