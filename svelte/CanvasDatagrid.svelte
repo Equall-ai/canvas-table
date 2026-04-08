@@ -438,13 +438,17 @@
     }
     const scale = grid.scale || 1;
     const newHeaders = [];
+    const seenHeaders = new Set();
     for (let i = 0; i < cells.length; i++) {
       const cell = cells[i];
       if (!cell.isColumnHeader || cell.isRowHeader || cell.isCorner || cell.isColumnHeaderCellCap) continue;
       const colName = cell.header?.name;
       if (!colName) continue;
+      const headerKey = 'h:' + cell.columnIndex;
+      if (seenHeaders.has(headerKey)) continue;
+      seenHeaders.add(headerKey);
       newHeaders.push({
-        key: 'h:' + cell.columnIndex,
+        key: headerKey,
         colName,
         title: cell.header?.title || colName,
         columnIndex: cell.columnIndex,
