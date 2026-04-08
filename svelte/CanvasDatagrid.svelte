@@ -549,7 +549,7 @@
   }
 
   function handleAfterDraw() {
-    flushSync(() => {
+    function doUpdate() {
       updateRendererOverlays();
       updateHeaderOverlays();
       updateTestOverlays();
@@ -571,7 +571,12 @@
       } else {
         frozenColumnPixel = 0;
       }
-    });
+    }
+    try {
+      flushSync(doUpdate);
+    } catch {
+      doUpdate();
+    }
   }
 
   function preventBackGesture(e) {
