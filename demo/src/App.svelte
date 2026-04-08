@@ -3,7 +3,7 @@
 
   let gridComponent;
   let rowCount = $state(500);
-  let columnCount = $state(10);
+  let columnCount = $state(15);
   let clickInfo = $state('');
 
   const sampleColumns = [
@@ -160,6 +160,23 @@
     data[cell.rowIndex].Role = newValue;
     data = [...data];
   }
+
+  let loadingMore = $state(false);
+  function handleRequestData({ lastVisibleRow, totalRows }) {
+    if (loadingMore) return;
+    loadingMore = true;
+    // Simulate async fetch
+    setTimeout(() => {
+      const nextBatch = generateData(100, columnCount);
+      // Give unique IDs to the new batch
+      for (let i = 0; i < nextBatch.length; i++) {
+        nextBatch[i].ID = totalRows + i + 1;
+        nextBatch[i].Name = `Person ${totalRows + i + 1}`;
+      }
+      data = [...data, ...nextBatch];
+      loadingMore = false;
+    }, 500);
+  }
 </script>
 
 {#snippet statusRenderer(cell)}
@@ -182,9 +199,12 @@
 <div class="demo-layout">
   <header>
     <h1>canvas-datagrid Svelte Component Demo</h1>
-    {#if clickInfo}
+    {#if loadingMore}
+      <span class="click-info">Loading more rows...</span>
+    {:else if clickInfo}
       <span class="click-info">{clickInfo}</span>
     {/if}
+    <span class="click-info" style="margin-left:auto;">{data.length} rows</span>
   </header>
 
   <div class="controls">
@@ -220,6 +240,8 @@
       cellStyle={getCellStyle}
       animateRows={{ key: 'ID', duration: 250 }}
       columnRenderers={{ Status: statusRenderer, Role: roleRenderer }}
+      onRequestData={handleRequestData}
+      requestDataBuffer={50}
       onclick={handleClick}
       onselectionchanged={handleSelectionChanged}
     />

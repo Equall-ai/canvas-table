@@ -435,4 +435,14 @@ export interface CanvasDatagridProps extends GridAttributes, GridEventHandlers {
   cellGridAttributes?: Record<string, any>;
   /** Callback for filling new cells. */
   fillCellCallback?: (cell: Cell) => any;
+  /**
+   * Called when the user scrolls near the bottom of the data.
+   * Use this to load the next page / batch of rows for infinite scrolling.
+   */
+  onRequestData?: (info: { lastVisibleRow: number; totalRows: number }) => void;
+  /**
+   * Number of rows from the bottom at which `onRequestData` fires.
+   * @default 50
+   */
+  requestDataBuffer?: number;
 }

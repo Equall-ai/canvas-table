@@ -38,6 +38,8 @@ npm install @equall/canvas-table
 | `htmlHeaders` | `boolean` | Render column headers as HTML DOM elements |
 | `columnHeaderRenderers` | `object` | Map of column names to header Svelte snippets (requires `htmlHeaders`) |
 | `testMode` | `boolean` | Render transparent DOM elements over cells for e2e testing |
+| `onRequestData` | `function` | Callback for infinite scroll — fires when scrolled near the bottom |
+| `requestDataBuffer` | `number` | Rows from bottom to trigger `onRequestData` (default `50`) |
 | `formatters` | `object` | Custom cell formatters |
 | `sorters` | `object` | Custom sort functions |
 | `filters` | `object` | Custom filter functions |
@@ -248,6 +250,40 @@ await page.click('[data-testid="header-Name"]');
 const value = await page.getAttribute('[data-testid="cell-3-1"]', 'data-value');
 await page.locator('[data-column="Status"]').count();
 ```
+
+### Infinite Scroll / Pagination
+
+Load data on demand as the user scrolls near the bottom of the grid:
+
+```svelte
+<script>
+  import CanvasDatagrid from '@equall/canvas-table/svelte';
+
+  let data = $state(initialBatch);
+  let loading = false;
+
+  async function handleRequestData({ lastVisibleRow, totalRows }) {
+    if (loading) return;
+    loading = true;
+    const nextBatch = await fetchRows(totalRows, 100);
+    data = [...data, ...nextBatch];
+    loading = false;
+  }
+</script>
+
+<CanvasDatagrid
+  {data}
+  onRequestData={handleRequestData}
+  requestDataBuffer={50}
+/>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `onRequestData` | `(info) => void` | `undefined` | Called when the user scrolls within the buffer zone |
+| `requestDataBuffer` | `number` | `50` | Number of rows from the bottom at which the callback fires |
+
+The callback receives `{ lastVisibleRow, totalRows }`. It fires once per data length — after you append rows (changing `data`), it re-arms automatically.
 
 ### Keyboard Shortcuts
 

@@ -77,6 +77,8 @@
     treeGridAttributes = undefined,
     cellGridAttributes = undefined,
     fillCellCallback = undefined,
+    onRequestData = undefined,
+    requestDataBuffer = 50,
     ...restProps
   } = $props();
 
@@ -737,6 +739,28 @@
     });
     resizeObserver.observe(container);
     return () => resizeObserver.disconnect();
+  });
+
+  // Infinite scroll: fire onRequestData when scrolled near the bottom.
+  let _requestDataFiredForLength = -1;
+  $effect(() => {
+    if (!grid || !onRequestData) return;
+    function onScroll() {
+      const totalRows = (grid.viewData || []).length;
+      const lastVisible = grid.scrollIndexRect?.bottom ?? 0;
+      if (totalRows > 0 && lastVisible >= totalRows - requestDataBuffer) {
+        if (_requestDataFiredForLength === totalRows) return;
+        _requestDataFiredForLength = totalRows;
+        onRequestData({ lastVisibleRow: lastVisible, totalRows });
+      }
+    }
+    grid.addEventListener('scroll', onScroll);
+    // Also check after draw in case initial data is short enough to trigger
+    grid.addEventListener('afterdraw', onScroll);
+    return () => {
+      grid.removeEventListener('scroll', onScroll);
+      grid.removeEventListener('afterdraw', onScroll);
+    };
   });
 </script>
 
