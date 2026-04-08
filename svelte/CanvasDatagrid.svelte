@@ -56,7 +56,7 @@
 </script>
 
 <script>
-  import { onMount, tick } from 'svelte';
+  import { onMount, tick, flushSync } from 'svelte';
   import canvasDatagrid from '../lib/main.js';
 
   let {
@@ -536,9 +536,11 @@
   }
 
   function handleAfterDraw() {
-    updateRendererOverlays();
-    updateHeaderOverlays();
-    updateTestOverlays();
+    flushSync(() => {
+      updateRendererOverlays();
+      updateHeaderOverlays();
+      updateTestOverlays();
+    });
   }
 
   function preventBackGesture(e) {

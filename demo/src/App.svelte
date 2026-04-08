@@ -179,6 +179,10 @@
   }
 </script>
 
+{#snippet idRenderer(cell)}
+  <div class="id-cell">#{cell.value}</div>
+{/snippet}
+
 {#snippet statusRenderer(cell)}
   <div class="status-pill" style="background:{statusColors[cell.value]?.bg || '#f3f4f6'};color:{statusColors[cell.value]?.text || '#374151'};border-color:{statusColors[cell.value]?.border || '#d1d5db'};">
     <select value={cell.value} onchange={(e) => updateStatus(cell, e)}>
@@ -239,7 +243,8 @@
       animatedCellSelection={true}
       cellStyle={getCellStyle}
       animateRows={{ key: 'ID', duration: 250 }}
-      columnRenderers={{ Status: statusRenderer, Role: roleRenderer }}
+      frozenColumn={1}
+      columnRenderers={{ ID: idRenderer, Status: statusRenderer, Role: roleRenderer }}
       onRequestData={handleRequestData}
       requestDataBuffer={50}
       onclick={handleClick}
@@ -367,6 +372,17 @@
     outline: none;
     width: 100%;
     text-align: center;
+  }
+
+  :global(.id-cell) {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    padding: 0 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #6366f1;
+    box-sizing: border-box;
   }
 
   :global(.status-pill select:hover) {
