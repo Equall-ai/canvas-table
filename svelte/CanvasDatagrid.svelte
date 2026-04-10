@@ -56,7 +56,7 @@
 </script>
 
 <script>
-  import { onMount, tick, flushSync } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import canvasDatagrid from '../lib/main.js';
 
   let {
@@ -551,33 +551,55 @@
   }
 
   function handleAfterDraw() {
-    function doUpdate() {
-      updateRendererOverlays();
-      updateHeaderOverlays();
-      updateTestOverlays();
-      if (grid && grid.frozenColumn > 0) {
-        const scale = grid.scale || 1;
-        const cells = grid.visibleCells;
-        let maxRight = 0;
-        if (cells) {
-          for (let i = 0; i < cells.length; i++) {
-            const c = cells[i];
-            if (!c.isHeader && !c.isRowHeader && !c.isCorner
-                && c.columnIndex !== undefined && c.columnIndex < grid.frozenColumn) {
-              const right = (c.x + c.width) / scale;
-              if (right > maxRight) maxRight = right;
-            }
+    updateRendererOverlays();
+    updateHeaderOverlays();
+    updateTestOverlays();
+    if (grid && grid.frozenColumn > 0) {
+      const scale = grid.scale || 1;
+      const cells = grid.visibleCells;
+      let maxRight = 0;
+      if (cells) {
+        for (let i = 0; i < cells.length; i++) {
+          const c = cells[i];
+          if (!c.isHeader && !c.isRowHeader && !c.isCorner
+              && c.columnIndex !== undefined && c.columnIndex < grid.frozenColumn) {
+            const right = (c.x + c.width) / scale;
+            if (right > maxRight) maxRight = right;
           }
         }
-        frozenColumnPixel = maxRight;
-      } else {
-        frozenColumnPixel = 0;
       }
+      frozenColumnPixel = maxRight;
+    } else {
+      frozenColumnPixel = 0;
     }
-    try {
-      flushSync(doUpdate);
-    } catch {
-      doUpdate();
+    // Synchronously patch DOM positions to avoid lag on frozen columns
+    // during scroll. Svelte will reconcile on the next tick.
+    syncOverlayPositions();
+  }
+
+  function syncOverlayPositions() {
+    if (!container) return;
+    const rendererEls = container.querySelectorAll('.cdg-renderer-cell');
+    for (let i = 0; i < rendererEls.length && i < renderedCells.length; i++) {
+      const el = rendererEls[i];
+      const c = renderedCells[i];
+      el.style.left = c.left + 'px';
+      el.style.top = c.top + 'px';
+      el.style.width = c.width + 'px';
+      el.style.height = c.height + 'px';
+    }
+    const headerEls = container.querySelectorAll('.cdg-header-cell');
+    for (let i = 0; i < headerEls.length && i < renderedHeaders.length; i++) {
+      const el = headerEls[i];
+      const h = renderedHeaders[i];
+      el.style.left = h.left + 'px';
+      el.style.top = h.top + 'px';
+      el.style.width = h.width + 'px';
+      el.style.height = h.height + 'px';
+    }
+    const shadowEl = container.querySelector('.cdg-frozen-shadow');
+    if (shadowEl) {
+      shadowEl.style.left = frozenColumnPixel + 'px';
     }
   }
 
