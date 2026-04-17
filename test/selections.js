@@ -677,6 +677,152 @@ export default function () {
     });
   });
 
+  it('should set a non-contiguous selection list via the setter', function () {
+    const grid = g({
+      test: this.test,
+      data: smallData(),
+    });
+    grid.setSelectionList([
+      { type: SelectionType.Cells, startRow: 0, startColumn: 0 },
+      { type: SelectionType.Cells, startRow: 2, startColumn: 2 },
+    ]);
+    const sorted = [...grid.selectionList].sort(
+      (a, b) => a.startRow - b.startRow,
+    );
+    chai.assert.deepStrictEqual(sorted.length, 2);
+    chai.assert.deepStrictEqual(sorted[0], {
+      type: SelectionType.Cells,
+      startRow: 0,
+      endRow: 0,
+      startColumn: 0,
+      endColumn: 0,
+    });
+    chai.assert.deepStrictEqual(sorted[1], {
+      type: SelectionType.Cells,
+      startRow: 2,
+      endRow: 2,
+      startColumn: 2,
+      endColumn: 2,
+    });
+  });
+  it('should throw when setSelectionList receives a non-array', function () {
+    const grid = g({
+      test: this.test,
+      data: smallData(),
+    });
+    chai.assert.throws(() => {
+      grid.setSelectionList('not-an-array');
+    }, TypeError);
+  });
+  it('should add and remove selections programmatically', function () {
+    const grid = g({
+      test: this.test,
+      data: smallData(),
+    });
+    grid.addSelection({
+      type: SelectionType.Cells,
+      startRow: 0,
+      startColumn: 0,
+    });
+    grid.addSelection({
+      type: SelectionType.Cells,
+      startRow: 2,
+      startColumn: 2,
+    });
+    chai.assert.deepStrictEqual(grid.selectionList.length, 2);
+    grid.removeSelection({
+      type: SelectionType.Cells,
+      startRow: 2,
+      startColumn: 2,
+    });
+    const remaining = grid.selectionList.filter(
+      (sel) => sel.type === SelectionType.Cells,
+    );
+    doAssert(
+      !remaining.some(
+        (sel) =>
+          sel.startRow <= 2 &&
+          sel.endRow >= 2 &&
+          sel.startColumn <= 2 &&
+          sel.endColumn >= 2,
+      ),
+      'cell (2,2) should no longer be covered by any Cells descriptor',
+    );
+  });
+  it('should fire selectionchanged when selectionList is replaced', async function () {
+    const grid = g({
+      test: this.test,
+      data: smallData(),
+    });
+    setTimeout(() => {
+      grid.setSelectionList([
+        { type: SelectionType.Cells, startRow: 0, startColumn: 0 },
+        { type: SelectionType.Cells, startRow: 2, startColumn: 2 },
+      ]);
+    }, 1);
+    const event = await listenSelectionChangedEvent(grid);
+    doAssert(
+      event.selectionList.length === 2,
+      'event carries both disjoint ranges',
+    );
+  });
+  it('should add a second rectangle via ctrl+drag without clearing the first', function (done) {
+    const grid = g({
+      test: this.test,
+      data: smallData(),
+    });
+    setTimeout(function () {
+      const p = bb(grid.canvas);
+      grid.focus();
+      // First rectangle: regular click-drag around (67,30) -> (100,35).
+      mousemove(window, 67, 30, grid.canvas);
+      mousedown(grid.canvas, 67, 30);
+      mousemove(window, 100, 35, grid.canvas);
+      mouseup(document.body, 100, 35, grid.canvas);
+      mouseup(grid.canvas, 100, 35, grid.canvas);
+      click(grid.canvas, 100, 35);
+
+      chai.assert.isAtLeast(
+        grid.selectionList.length,
+        1,
+        'first selection established',
+      );
+
+      // Second rectangle: ctrl+drag well below the first.
+      de(document.body, 'mousemove', {
+        clientX: 67 + p.left,
+        clientY: 80 + p.top,
+        ctrlKey: true,
+      });
+      de(grid.canvas, 'mousedown', {
+        clientX: 67 + p.left,
+        clientY: 80 + p.top,
+        ctrlKey: true,
+      });
+      de(document.body, 'mousemove', {
+        clientX: 100 + p.left,
+        clientY: 85 + p.top,
+        ctrlKey: true,
+      });
+      de(document.body, 'mouseup', {
+        clientX: 100 + p.left,
+        clientY: 85 + p.top,
+        ctrlKey: true,
+      });
+      de(grid.canvas, 'mouseup', {
+        clientX: 100 + p.left,
+        clientY: 85 + p.top,
+        ctrlKey: true,
+      });
+
+      doAssert(
+        grid.selectionList.length >= 2,
+        'ctrl+drag added a second disjoint rectangle; first was preserved',
+      );
+      done();
+    }, 1);
+  });
+
   function selectAreaAndWaitEvent(grid, area, ctrl) {
     setTimeout(grid.selectArea.bind(grid, area, ctrl), 1);
     return listenSelectionChangedEvent(grid);
