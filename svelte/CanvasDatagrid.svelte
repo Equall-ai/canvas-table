@@ -574,6 +574,43 @@
     }
   }
 
+  function getCanvasEl() {
+    if (!container) return null;
+    return container.querySelector('canvas-datagrid')?.shadowRoot?.querySelector('canvas')
+      || container.querySelector('canvas');
+  }
+
+  function forwardMouseEvent(type, e) {
+    const canvas = getCanvasEl();
+    if (!canvas) return;
+    canvas.dispatchEvent(new MouseEvent(type, {
+      bubbles: true,
+      cancelable: true,
+      clientX: e.clientX,
+      clientY: e.clientY,
+      button: e.button,
+      buttons: e.buttons,
+    }));
+  }
+
+  function handleHeaderResizeStart(e) {
+    // Synthesize a mousemove + mousedown on the canvas so the grid's
+    // native column-resize drag logic takes over.
+    e.preventDefault();
+    e.stopPropagation();
+    forwardMouseEvent('mousemove', e);
+    forwardMouseEvent('mousedown', e);
+  }
+
+  function handleHeaderResizeDblClick(e, header) {
+    // Fit the column to its content on double-click of the resize handle
+    e.preventDefault();
+    e.stopPropagation();
+    if (grid && header?.colName) {
+      grid.fitColumnToValues(header.colName);
+    }
+  }
+
   function preventBackGesture(e) {
     // Prevent horizontal scroll from triggering browser back/forward navigation
     if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
@@ -827,6 +864,12 @@
             {/if}
           {/if}
         </button>
+        <div
+          class="cdg-header-resize"
+          style="left:{header.left + header.width - 4}px;top:{header.top}px;height:{header.height}px;{header.frozen ? 'z-index:2;' : ''}"
+          onmousedown={handleHeaderResizeStart}
+          ondblclick={(e) => handleHeaderResizeDblClick(e, header)}
+        ></div>
       {/each}
     </div>
   {/if}
@@ -905,6 +948,15 @@
     margin: 0;
     white-space: nowrap;
     text-overflow: ellipsis;
+  }
+
+  .cdg-header-resize {
+    position: absolute;
+    width: 8px;
+    pointer-events: auto;
+    cursor: ew-resize;
+    user-select: none;
+    z-index: 1;
   }
 
   .cdg-header-cell:hover {

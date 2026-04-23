@@ -200,6 +200,18 @@
   </div>
 {/snippet}
 
+{#snippet nameHeader(header)}
+  <span class="custom-header">👤 {header.title}
+    {#if header.sortDirection}<span style="opacity:0.6;">{header.sortDirection === 'asc' ? '▲' : '▼'}</span>{/if}
+  </span>
+{/snippet}
+
+{#snippet salaryHeader(header)}
+  <span class="custom-header">💰 {header.title}
+    {#if header.sortDirection}<span style="opacity:0.6;">{header.sortDirection === 'asc' ? '▲' : '▼'}</span>{/if}
+  </span>
+{/snippet}
+
 <div class="demo-layout">
   <header>
     <h1>canvas-datagrid Svelte Component Demo</h1>
@@ -244,7 +256,9 @@
       cellStyle={getCellStyle}
       animateRows={{ key: 'ID', duration: 250 }}
       frozenColumn={1}
+      htmlHeaders={true}
       columnRenderers={{ ID: idRenderer, Status: statusRenderer, Role: roleRenderer }}
+      columnHeaderRenderers={{ Name: nameHeader, Salary: salaryHeader }}
       onRequestData={handleRequestData}
       requestDataBuffer={50}
       onclick={handleClick}
@@ -383,6 +397,14 @@
     font-weight: 600;
     color: #6366f1;
     box-sizing: border-box;
+  }
+
+  :global(.custom-header) {
+    font-weight: 600;
+    color: #1e293b;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
   }
 
   :global(.status-pill select:hover) {
