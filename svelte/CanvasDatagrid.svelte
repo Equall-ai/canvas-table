@@ -361,19 +361,53 @@
     const cell = e.cell;
     if (!cell || cell.isHeader || cell.isRowHeader || cell.isCorner) return;
     const s = getCellStyleObj(cell);
-    if (!s || !s.shadow || s.shadow === 'none') return;
-    const preset = shadowPresets[s.shadow] || shadowPresets.none;
-    if (!preset.height) return;
+    if (!s) return;
     const ctx = e.ctx;
     const scale = grid?.scale || 1;
-    const y = cell.offsetTop;
     const x = cell.offsetLeft;
-    const h = preset.height * scale;
-    const grad = ctx.createLinearGradient(0, y, 0, y + h);
-    grad.addColorStop(0, preset.color);
-    grad.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = grad;
-    ctx.fillRect(x, y, cell.width, h);
+    const y = cell.offsetTop;
+    const w = cell.width;
+    const h = cell.height;
+
+    // Inset top shadow
+    if (s.shadow && s.shadow !== 'none') {
+      const preset = shadowPresets[s.shadow] || shadowPresets.none;
+      if (preset.height) {
+        const sh = preset.height * scale;
+        const grad = ctx.createLinearGradient(0, y, 0, y + sh);
+        grad.addColorStop(0, preset.color);
+        grad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.save();
+        ctx.fillStyle = grad;
+        ctx.fillRect(x, y, w, sh);
+        ctx.restore();
+      }
+    }
+
+    // Per-side borders. Each side accepts either a CSS color string
+    // (e.g. "#ff0000") or an object { color, width }.
+    if (s.borderTop || s.borderRight || s.borderBottom || s.borderLeft) {
+      ctx.save();
+      drawSideBorder(ctx, s.borderTop, x, y, w, scale, 'top');
+      drawSideBorder(ctx, s.borderBottom, x, y + h, w, scale, 'top');
+      drawSideBorder(ctx, s.borderLeft, x, y, h, scale, 'left');
+      drawSideBorder(ctx, s.borderRight, x + w, y, h, scale, 'left');
+      ctx.restore();
+    }
+  }
+
+  function drawSideBorder(ctx, spec, ax, ay, length, scale, axis) {
+    if (!spec) return;
+    const color = typeof spec === 'string' ? spec : spec.color || '#000';
+    const widthPx = (typeof spec === 'object' && spec.width != null ? spec.width : 1) * scale;
+    ctx.fillStyle = color;
+    if (axis === 'top') {
+      // horizontal stroke at (ax, ay), width=length, height=widthPx
+      ctx.fillRect(ax, ay - widthPx / 2, length, widthPx);
+    } else {
+      // vertical stroke at (ax, ay), width=widthPx, height=length
+      ctx.fillRect(ax - widthPx / 2, ay, widthPx, length);
+    }
   }
 
   function handleRenderText(e) {

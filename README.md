@@ -192,6 +192,25 @@ Apply declarative styles to cells without writing `rendercell` handlers:
 | `shadow` | `'none' \| 'sm' \| 'md' \| 'lg'` | Inset top shadow for row depth effect |
 | `borderColor` | `string` | Cell border color |
 | `borderWidth` | `number` | Cell border width in pixels |
+| `borderTop` / `borderRight` / `borderBottom` / `borderLeft` | `string \| { color, width }` | Per-side border. CSS color string (e.g. `"#ff0000"`) or `{ color, width }` object |
+
+Per-side borders example:
+
+```svelte
+<CanvasDatagrid
+  {data}
+  cellStyle={({ colName, value, rowIndex, row }) => {
+    if (colName === 'Total') {
+      // thick green left border for emphasis
+      return { borderLeft: { color: '#10b981', width: 3 } };
+    }
+    if (rowIndex > 0 && row.group !== prevRow.group) {
+      // group separator
+      return { borderTop: '#94a3b8' };
+    }
+  }}
+/>
+```
 
 ### Animated Row Transitions
 

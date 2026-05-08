@@ -348,6 +348,14 @@ export interface CellStyle {
   borderColor?: string;
   /** Cell border width in pixels. */
   borderWidth?: number;
+  /** Top border. CSS color string or `{ color, width }` object (width in CSS pixels). */
+  borderTop?: string | { color?: string; width?: number };
+  /** Right border. CSS color string or `{ color, width }` object (width in CSS pixels). */
+  borderRight?: string | { color?: string; width?: number };
+  /** Bottom border. CSS color string or `{ color, width }` object (width in CSS pixels). */
+  borderBottom?: string | { color?: string; width?: number };
+  /** Left border. CSS color string or `{ color, width }` object (width in CSS pixels). */
+  borderLeft?: string | { color?: string; width?: number };
 }
 
 /** Context object passed to the cellStyle function. */
