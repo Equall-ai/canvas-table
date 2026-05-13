@@ -356,6 +356,14 @@ export interface CellStyle {
   borderBottom?: string | { color?: string; width?: number };
   /** Left border. CSS color string or `{ color, width }` object (width in CSS pixels). */
   borderLeft?: string | { color?: string; width?: number };
+  /** Left padding in CSS pixels (overrides the grid-wide `cellPaddingLeft` style). */
+  paddingLeft?: number;
+  /** Right padding in CSS pixels (overrides the grid-wide `cellPaddingRight` style). */
+  paddingRight?: number;
+  /** Top padding in CSS pixels (overrides the grid-wide `cellPaddingTop` style). */
+  paddingTop?: number;
+  /** Bottom padding in CSS pixels (overrides the grid-wide `cellPaddingBottom` style). */
+  paddingBottom?: number;
 }
 
 /** Context object passed to the cellStyle function. */

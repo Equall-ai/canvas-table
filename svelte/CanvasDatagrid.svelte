@@ -354,6 +354,19 @@
     if (s.backgroundColor) ctx.fillStyle = s.backgroundColor;
     if (s.borderColor) ctx.strokeStyle = s.borderColor;
     if (s.borderWidth != null) ctx.lineWidth = s.borderWidth;
+    // Per-cell padding overrides. Values are in CSS pixels; the grid expects
+    // device pixels, so multiply by scale. paddedWidth/paddedHeight are
+    // derived values that must be recomputed when padding changes.
+    const scale = grid?.scale || 1;
+    let paddingChanged = false;
+    if (s.paddingLeft != null) { cell.paddingLeft = s.paddingLeft * scale; paddingChanged = true; }
+    if (s.paddingRight != null) { cell.paddingRight = s.paddingRight * scale; paddingChanged = true; }
+    if (s.paddingTop != null) { cell.paddingTop = s.paddingTop * scale; paddingChanged = true; }
+    if (s.paddingBottom != null) { cell.paddingBottom = s.paddingBottom * scale; paddingChanged = true; }
+    if (paddingChanged) {
+      cell.paddedWidth = cell.width - cell.paddingRight - cell.paddingLeft;
+      cell.paddedHeight = cell.height - cell.paddingTop - cell.paddingBottom;
+    }
   }
 
   function handleAfterRenderCell(e) {

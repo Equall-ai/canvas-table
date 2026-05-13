@@ -193,6 +193,7 @@ Apply declarative styles to cells without writing `rendercell` handlers:
 | `borderColor` | `string` | Cell border color |
 | `borderWidth` | `number` | Cell border width in pixels |
 | `borderTop` / `borderRight` / `borderBottom` / `borderLeft` | `string \| { color, width }` | Per-side border. CSS color string (e.g. `"#ff0000"`) or `{ color, width }` object |
+| `paddingLeft` / `paddingRight` / `paddingTop` / `paddingBottom` | `number` | Per-cell padding in CSS pixels (overrides the grid-wide `cellPadding*` style) |
 
 Per-side borders example:
 
