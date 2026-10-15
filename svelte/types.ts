@@ -426,6 +426,10 @@ export interface CanvasDatagridProps extends GridAttributes, GridEventHandlers {
   style?: Record<string, any>;
   /** Map of column names to Svelte snippet renderers. */
   columnRenderers?: Record<string, Snippet<[RendererCell]>>;
+  /** Narrows `columnRenderers` to individual cells; cells it rejects paint on the canvas. Layout fields (`key`, `left`, `top`, …) are not set. */
+  cellRendererFilter?: (
+    cell: Pick<RendererCell, 'colName' | 'value' | 'formattedValue' | 'row' | 'rowIndex' | 'columnIndex'>,
+  ) => boolean;
   /** Declarative cell styling function. Receives cell context, returns style overrides. */
   cellStyle?: (context: CellStyleContext) => CellStyle | null | undefined;
   /**

@@ -64,6 +64,7 @@
     schema = $bindable(undefined),
     style: gridStyle = {},
     columnRenderers = {},
+    cellRendererFilter = undefined,
     htmlHeaders = false,
     columnHeaderRenderers = {},
     cellStyle = undefined,
@@ -325,6 +326,22 @@
     return columnRenderers && Object.keys(columnRenderers).length > 0;
   }
 
+  function usesRenderer(cell) {
+    const colName = cell.header?.name;
+    if (!colName || !columnRenderers[colName]) return false;
+    if (!cellRendererFilter) return true;
+    // Raw grid cells carry `data`/`header.name`; hand the filter the same
+    // field names the renderer snippets receive.
+    return cellRendererFilter({
+      colName,
+      value: cell.value,
+      formattedValue: cell.formattedValue,
+      row: cell.data,
+      rowIndex: cell.rowIndex,
+      columnIndex: cell.columnIndex,
+    });
+  }
+
   const shadowPresets = {
     none: { height: 0, color: 'rgba(0,0,0,0)' },
     sm: { height: 3, color: 'rgba(0,0,0,0.08)' },
@@ -433,8 +450,7 @@
     }
     // Suppress cell text for custom column renderers
     if (hasRenderers() && !cell.isHeader && !cell.isRowHeader && !cell.isCorner) {
-      const colName = cell.header?.name;
-      if (colName && columnRenderers[colName]) {
+      if (usesRenderer(cell)) {
         e.preventDefault();
         return;
       }
@@ -583,8 +599,8 @@
     for (let i = 0; i < cells.length; i++) {
       const cell = cells[i];
       if (cell.isHeader || cell.isRowHeader || cell.isCorner) continue;
-      const colName = cell.header?.name;
-      if (colName && columnRenderers[colName]) {
+      if (usesRenderer(cell)) {
+        const colName = cell.header.name;
         const cellKey = cell.rowIndex + ':' + cell.columnIndex;
         if (seen.has(cellKey)) continue;
         seen.add(cellKey);
